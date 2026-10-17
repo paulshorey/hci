@@ -10,7 +10,7 @@ import { migrations } from '../src/migrations/index'
 import { required } from '../src/lib/env'
 
 export async function migrate(available = migrations) {
-  const client = new Client({ connectionString: required('DATABASE_URL') })
+  const client = new Client({ connectionString: required('DB_HCI_URL') })
   await client.connect()
   let payload: Awaited<ReturnType<typeof getPayload>> | undefined
   try {

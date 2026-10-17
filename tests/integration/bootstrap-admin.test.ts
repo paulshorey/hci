@@ -21,7 +21,7 @@ test('deployment bootstrap requires credentials once and never replaces existing
     url.pathname = `/${name}`
     const env = {
       ...process.env,
-      DATABASE_URL: url.href,
+      DB_HCI_URL: url.href,
       STORAGE_DRIVER: 'disk',
       ALLOW_PERSISTENT_DISK: 'true',
       CMS_BOOTSTRAP_EMAIL: 'owner@example.test',

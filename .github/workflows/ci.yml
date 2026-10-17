@@ -21,7 +21,7 @@ jobs:
           --health-cmd "pg_isready -U hci -d hci_test"
           --health-interval 3s --health-timeout 3s --health-retries 20
     env:
-      DATABASE_URL: postgresql://hci:hci@127.0.0.1:55432/hci_test
+      DB_HCI_URL: postgresql://hci:hci@127.0.0.1:55432/hci_test
       HCI_TEST_DATABASE_URL: postgresql://hci:hci@127.0.0.1:55432/hci_test
       PAYLOAD_SECRET: ci-only-placeholder-for-disposable-database
       EMBED_PREVIEW_SECRET: ci-only-second-placeholder-for-disposable-database

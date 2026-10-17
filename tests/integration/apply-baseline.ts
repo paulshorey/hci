@@ -1,7 +1,7 @@
 import { migrate } from '../../scripts/migrate'
 import { migrations } from '../../src/migrations/index'
 import { required } from '../../src/lib/env'
-const database = new URL(required('DATABASE_URL'))
+const database = new URL(required('DB_HCI_URL'))
 if (
   !['127.0.0.1', 'localhost', 'postgres'].includes(database.hostname) ||
   !database.pathname.endsWith('_test')

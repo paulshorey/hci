@@ -25,7 +25,7 @@ pnpm embeds:dev
 
 Open [the blog](http://localhost:4500) and [Payload](http://localhost:4500/admin). Create your own first admin account in Payload. The seed creates no accounts or default passwords. The embed server listens on port 4501 and must use a different origin from the application.
 
-`setup:local` creates an ignored `.env` with random authentication and preview secrets. It preserves an existing file. For a native PostgreSQL installation, create local `hci` and `hci_test` databases and adjust the ignored connection URLs. Application tables are created entirely by migrations.
+`setup:local` creates an ignored `.env` with random authentication and preview secrets. It preserves an existing file. For a native PostgreSQL installation, create local `hci` and `hci_test` databases and adjust the ignored connection URLs. The application, embed service and database tools require `DB_HCI_URL`; a generic global `DATABASE_URL` is ignored. Local development and CI use their own local PostgreSQL URL. Application tables are created entirely by migrations.
 
 The seed includes three clearly labeled illustrative articles, generated interface diagrams, a small video, a download, and an interactive experiment. These demonstrate the content model and make no claims about measured usability. Existing sample posts are preserved on subsequent runs.
 

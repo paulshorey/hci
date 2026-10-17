@@ -7,7 +7,7 @@ import { required } from '../src/lib/env'
 import { importBundle, readFolder } from '../src/lib/snippets/bundles'
 import type { Post } from '../src/generated/payload-types'
 
-const database = new URL(required('DATABASE_URL'))
+const database = new URL(required('DB_HCI_URL'))
 if (
   process.env.NODE_ENV === 'production' ||
   !['127.0.0.1', 'localhost', 'postgres'].includes(database.hostname)

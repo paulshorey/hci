@@ -2,7 +2,7 @@ import 'dotenv/config'
 import { getPayload } from 'payload'
 import config from '../src/payload.config'
 import { required } from '../src/lib/env'
-if (!new URL(required('DATABASE_URL')).pathname.endsWith('_test'))
+if (!new URL(required('DB_HCI_URL')).pathname.endsWith('_test'))
   throw new Error('E2E accounts require a disposable test database.')
 const payload = await getPayload({ config })
 try {
