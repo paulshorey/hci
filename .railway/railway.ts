@@ -1,11 +1,11 @@
 import { defineRailway, preserve, project, ref, service } from 'railway/iac'
-import { deploymentResources } from './resources'
+import { deploymentResources } from './resources.ts'
 
 // Own only this graph, even when the project later hosts other applications.
 export const partial = 'hci'
 
 export default defineRailway((ctx) => {
-  const { postgres, assets, branch } = deploymentResources(ctx)
+  const { postgres, assets, computeRegion, branch } = deploymentResources(ctx)
   // Native references resolve to this environment's bucket without copying credentials.
   const storage = assets
     ? {
@@ -26,6 +26,7 @@ export default defineRailway((ctx) => {
       }
   const common = {
     NODE_ENV: 'production',
+    PORT: '8080',
     STORAGE_DRIVER: 's3',
     DATABASE_URL: postgres.env.DATABASE_URL,
     SITE_URL: ctx.shared.HCI_SITE_URL,
@@ -38,12 +39,15 @@ export default defineRailway((ctx) => {
     env: {
       ...common,
       PAYLOAD_SECRET: preserve(),
+      CMS_BOOTSTRAP_EMAIL: preserve(),
+      CMS_BOOTSTRAP_PASSWORD: preserve(),
       MEDIA_MAX_UPLOAD_MB: '100',
       S3_SIGNED_DOWNLOADS: 'true',
     },
     build: { builder: 'RAILPACK', buildCommand: 'pnpm build' },
     deploy: {
-      preDeployCommand: ['pnpm db:migrate'],
+      preDeployCommand: ['pnpm db:migrate && pnpm cms:bootstrap'],
+      multiRegionConfig: { [computeRegion]: { numReplicas: 1 } },
       startCommand: 'pnpm start',
       healthcheckPath: '/api/health',
       healthcheckTimeout: 60,
@@ -54,6 +58,7 @@ export default defineRailway((ctx) => {
     env: common,
     build: { builder: 'RAILPACK', buildCommand: 'pnpm check-types' },
     deploy: {
+      multiRegionConfig: { [computeRegion]: { numReplicas: 1 } },
       startCommand: 'pnpm embeds:start',
       healthcheckPath: '/health',
       healthcheckTimeout: 60,

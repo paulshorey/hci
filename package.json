@@ -16,6 +16,7 @@
     "db:migration:create": "payload migrate:create",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:status": "payload migrate:status",
+    "cms:bootstrap": "tsx scripts/bootstrap-admin.ts",
     "db:verify": "tsx scripts/verify-db.ts",
     "db:snapshot": "tsx scripts/snapshot-db.ts",
     "setup:local": "tsx scripts/setup-local.ts",

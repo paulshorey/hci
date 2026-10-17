@@ -6,6 +6,7 @@ export function deploymentResources(ctx: RailwayContext) {
   const target = process.env.HCI_RAILWAY_TARGET
   const region = process.env.HCI_BUCKET_REGION
   const storageProvider = process.env.HCI_STORAGE_PROVIDER || 'railway'
+  const computeRegion = 'us-east4-eqdc4a'
   if (!['railway', 'external-s3'].includes(storageProvider))
     throw new Error('HCI_STORAGE_PROVIDER must be railway or external-s3.')
   if (!expectedProject || ctx.projectId !== expectedProject)
@@ -19,10 +20,11 @@ export function deploymentResources(ctx: RailwayContext) {
   const postgres = database('postgres', 'postgres', {
     image: 'ghcr.io/railwayapp-templates/postgres-ssl:17',
     defaultMountPath: '/var/lib/postgresql/data',
+    region: computeRegion,
   })
   const assets =
     storageProvider === 'railway'
       ? bucket('assets', { region: region as 'sjc' | 'iad' | 'ams' | 'sin' })
       : undefined
-  return { postgres, assets, branch: target === 'production' ? 'prod' : 'main' }
+  return { postgres, assets, computeRegion, branch: target === 'production' ? 'prod' : 'main' }
 }

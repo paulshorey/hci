@@ -2,6 +2,8 @@
 
 The graph is prepared and type-checked; no Railway project, bucket, domain, or provider grant is implied by the repository configuration.
 
+The selected HCI project and environment IDs are recorded in [deployment details](../docs/deployment.md). Compute and PostgreSQL use Virginia `us-east4-eqdc4a`; both buckets use the user-selected immutable `iad` region.
+
 ## Select the deployment target
 
 Use a dedicated HCI project or the named `hci` partial within an explicitly selected shared project. The partial owns Postgres, a private Railway asset bucket, the web/CMS service, and the isolated embed service. Preserve other partials. Railway Buckets are the selected primary storage provider; each environment has an isolated bucket instance and credentials.
@@ -47,7 +49,9 @@ Only the optional `external-s3` path requires these additional shared variables:
 | `HCI_S3_FORCE_PATH_STYLE`  | `true` for R2; provider-specific otherwise |
 | `HCI_S3_SECRET_ACCESS_KEY` | Generated bucket credential reference      |
 
-Set a separate random `PAYLOAD_SECRET` on the web service; IaC preserves it. Configure optional `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, and `SMTP_FROM_NAME` on that service before relying on password recovery. Add those settings to the owning IaC environment map when enabling them.
+Set separate random `PAYLOAD_SECRET`, `CMS_BOOTSTRAP_EMAIL` and `CMS_BOOTSTRAP_PASSWORD` values on the web service; IaC preserves them. The bootstrap password must have at least 32 characters. Pre-deploy runs migrations and then `pnpm cms:bootstrap` before the CMS serves traffic. This creates an administrator only when the user collection is empty; subsequent releases never replace accounts or reset passwords. Keep its generated password in a secure local store and change it after first login. No bootstrap credentials are supplied to the embed service.
+
+Configure optional `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, and `SMTP_FROM_NAME` on the web service before relying on password recovery. Add those settings to the owning IaC environment map when enabling them.
 
 For a confirmed empty environment, use the included resource-only bootstrap graph before enabling source deployments:
 
@@ -56,7 +60,7 @@ railway config plan --file .railway/bootstrap.ts
 railway config apply --file .railway/bootstrap.ts
 ```
 
-This creates the named database, Railway bucket, and empty web/embed services without deploying application code. Generate service domains, then fill the three application shared variables and web secret before planning the complete graph below. Native bucket credentials are connected by the full graph. Both files share the same resource definitions and partial ownership. **Never apply the bootstrap graph to an initialized environment:** its omitted configuration would remove application settings. Use the full graph for all subsequent operations. Never substitute example credentials or fake project IDs. Verify the complete plan contains no deletion of unrelated resources.
+This creates the named database, Railway bucket, and empty web/embed services without deploying application code. Generate service domains targeting port 8080, then fill the three application shared variables and web secrets before planning the complete graph below. Native bucket credentials are connected by the full graph. Both files share the same resource definitions and partial ownership. **Never apply the bootstrap graph to an initialized environment:** its omitted configuration would remove application settings. Use the full graph for all subsequent operations. Never substitute example credentials or fake project IDs. Verify the complete plan contains no deletion of unrelated resources.
 
 The Postgres image is pinned to major 17. The application build runs without reading the database, and pre-deploy runs `pnpm db:migrate` over private networking. Ensure the built image retains `src/migrations`, the scripts, and runtime dependencies. Public media delivery uses five-minute signed bucket URLs after authorization; authenticated editor delivery and isolated bundles remain proxied. Neither service requires a writable application filesystem with S3 storage. Avoid persistent disk configuration across these two separate containers.
 
