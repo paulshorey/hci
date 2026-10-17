@@ -64,6 +64,8 @@ This creates the named database, Railway bucket, and empty web/embed services wi
 
 The Postgres image is pinned to major 17. The application build runs without reading the database, and pre-deploy runs `pnpm db:migrate` over private networking. Ensure the built image retains `src/migrations`, the scripts, and runtime dependencies. Public media delivery uses five-minute signed bucket URLs after authorization; authenticated editor delivery and isolated bundles remain proxied. Neither service requires a writable application filesystem with S3 storage. Avoid persistent disk configuration across these two separate containers.
 
+The embed health check waits up to 300 seconds for its required schema. On the first deployment its smaller build can finish before the web build and pre-deploy migrations; it remains unready until those tables exist. Migration credentials and CMS authentication secrets stay on the web service.
+
 ## Plan, apply, verify
 
 ```sh

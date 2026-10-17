@@ -61,7 +61,8 @@ export default defineRailway((ctx) => {
       multiRegionConfig: { [computeRegion]: { numReplicas: 1 } },
       startCommand: 'pnpm embeds:start',
       healthcheckPath: '/health',
-      healthcheckTimeout: 60,
+      // The first web build owns schema creation and can finish after this smaller build.
+      healthcheckTimeout: 300,
     },
   })
   return project('HCI', { resources: [postgres, ...(assets ? [assets] : []), web, embeds] })
