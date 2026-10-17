@@ -1,6 +1,6 @@
 # Railway deployment
 
-The graph is prepared and type-checked; no Railway project, bucket, domain, or provider grant is implied by the repository configuration.
+The HCI graph has been applied to its selected dev and production environments. Cloning the repository does not provision resources or grant provider access. Verify the recorded target and current live state before operating it.
 
 The selected HCI project and environment IDs are recorded in [deployment details](../docs/deployment.md). Compute and PostgreSQL use Virginia `us-east4-eqdc4a`; both buckets use the user-selected immutable `iad` region.
 
@@ -75,6 +75,8 @@ railway config plan --file .railway/railway.ts --detailed-exit-code
 Read the complete plan before applying. Do not add destructive-confirmation flags to make an unexplained replacement pass. Database and bucket replacements require a separate migration/recovery plan.
 
 The workflow plans same-repository PRs without applying. On `main`/`prod` pushes, it makes a fresh saved plan, verifies that the source commit remains the branch head, applies that plan, and requires a clean follow-up plan. It is disabled until the project variable is configured. A source push alone does not evaluate the TypeScript graph.
+
+After push applies, `pnpm railway:backups` reconciles PostgreSQL volume backup schedules: daily for dev; daily, weekly and monthly for production. This uses the environment-scoped Railway token and verifies read-back; the current SDK does not declare these schedules in the graph. Provider retention is separate from the independent database/object archive plan.
 
 After provisioning or release:
 

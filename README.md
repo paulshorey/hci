@@ -99,6 +99,8 @@ To inspect a production build locally with disk storage, use `ALLOW_PERSISTENT_D
 
 The TypeScript Railway graph is in `.railway/railway.ts`: Postgres 17, a private Railway Bucket, a web/CMS service, and an isolated embed service. Railway Buckets are the selected primary storage for uploads and interactive bundles. Native variable references connect both services to their own environment's bucket without copying access keys. `main` supplies development and `prod` supplies production. The web service runs migrations before starting the new release.
 
+The HCI project is configured with separate dev and production environments in Virginia. [Deployment details](docs/deployment.md) record their URLs, IDs, first-administrator credential location and automatic deployment/backup settings. GitHub Actions applies infrastructure changes and verifies backup schedules; Railway's GitHub integration deploys application pushes from each environment's branch.
+
 No cloud resources are provisioned by cloning or installing this project. Select the exact Railway project, environment, bucket region, and domains before applying the graph. The region is deliberately required because a bucket's region cannot change after creation. See [the deployment runbook](.railway/README.md) for bootstrap variables, environment secrets, plan/apply, and release verification.
 
 SMTP is optional locally. Configure it before relying on CMS password recovery in a deployment. With no transport, delivery fails explicitly; emails and reset tokens are not printed to logs.

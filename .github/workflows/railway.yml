@@ -1,10 +1,24 @@
 name: Railway infrastructure
 on:
   pull_request:
-    paths: ['.railway/**', '.github/workflows/railway.yml', 'package.json', 'pnpm-lock.yaml']
+    paths:
+      [
+        '.railway/**',
+        '.github/workflows/railway.yml',
+        'scripts/configure-backups.ts',
+        'package.json',
+        'pnpm-lock.yaml',
+      ]
   push:
     branches: [main, prod]
-    paths: ['.railway/**', '.github/workflows/railway.yml', 'package.json', 'pnpm-lock.yaml']
+    paths:
+      [
+        '.railway/**',
+        '.github/workflows/railway.yml',
+        'scripts/configure-backups.ts',
+        'package.json',
+        'pnpm-lock.yaml',
+      ]
   workflow_dispatch:
 permissions:
   contents: read
@@ -60,3 +74,6 @@ jobs:
           test "$(git ls-remote origin "refs/heads/$GITHUB_REF_NAME" | cut -f1)" = "$GITHUB_SHA"
           railway config apply --plan "$RUNNER_TEMP/railway-plan.json" --yes
           railway config plan --file .railway/railway.ts --detailed-exit-code
+      - name: Configure and verify database backup schedules
+        if: github.event_name != 'pull_request'
+        run: pnpm railway:backups

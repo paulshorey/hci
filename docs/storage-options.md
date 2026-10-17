@@ -64,9 +64,9 @@ After credentials are installed, run `pnpm storage:check`. It writes one randoml
 
 ## Backup and recovery plan
 
-Before production content is added, enable Railway PostgreSQL volume backups and schedule independent logical database exports plus object copies. [Railway volume backups](https://docs.railway.com/volumes/backups) restore within the same project/environment and are removed when the volume is wiped; keep an independent copy for recovery outside that scope.
+Railway PostgreSQL volume backup schedules are configured: daily for dev; daily, weekly and monthly for production, reconciled by the infrastructure workflow. Before production evidence accumulates, also schedule independent logical database exports plus object copies. [Railway volume backups](https://docs.railway.com/volumes/backups) restore within the same project/environment and are removed when the volume is wiped; keep an independent copy for recovery outside that scope.
 
-My proposed starting policy is 30 daily database snapshots and 12 monthly snapshots, plus a matching append-only object archive in a separate account or provider. Use an AWS S3 backup bucket with versioning, or an R2 backup bucket with a separately selected retention lock. Application service keys must not be able to erase backup history. There is no unattended backup job or retention policy provisioned by this change.
+My proposed independent archive policy is 30 daily logical database snapshots and 12 monthly snapshots, plus a matching append-only object archive in a separate account or provider. This is separate from the configured Railway volume schedules and their provider retention. Use an AWS S3 backup bucket with versioning, or an R2 backup bucket with a separately selected retention lock. Application service keys must not be able to erase backup history. Independent export/copy jobs and protected object retention are not provisioned yet.
 
 Back up the original media, derivatives, every bundle version and manifests, the database, and the source commit identifying its migrations. Do not configure age-based deletion of originals: old posts and retained revisions may still reference them. Backups must capture a coherent database/object set, through an editorial write pause or versioned inventory that accounts for concurrent edits. A database-only backup cannot reconstruct uploads.
 

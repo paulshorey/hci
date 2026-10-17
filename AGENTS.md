@@ -16,4 +16,4 @@ Use pnpm db:migrate for database changes. Never enable automatic schema push, mo
 
 Executable bundles must remain on a separate origin without CMS routes/cookies. Keep validated imports, immutable file manifests, publishing checks, and short-lived draft preview access intact. Do not relax sandbox policies to make arbitrary external dependencies load.
 
-Run the relevant checks documented in README.md. The Railway graph is preparation only until the user selects a target project, environment, immutable bucket region, and domains. Do not apply bootstrap configuration to an initialized environment.
+Run the relevant checks documented in README.md. HCI's selected live Railway project, environments, immutable bucket region, domains and credential references are documented in docs/deployment.md. Verify that exact target before operating it. Use the full graph for existing environments; do not apply bootstrap configuration to an initialized environment.
