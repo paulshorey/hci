@@ -1,0 +1,10 @@
+pnpm-lock.yaml
+src/generated/
+src/migrations/
+next-env.d.ts
+schema/
+.next/
+/storage/
+.local/
+playwright-report/
+test-results/

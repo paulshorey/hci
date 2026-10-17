@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Target size laboratory</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main>
+      <span class="eyebrow">An illustrative interaction experiment</span>
+      <h1>A little more room.</h1>
+      <p>
+        Adjust the target size, then try selecting a circle. This sample demonstrates an interactive
+        bundle; it is not a controlled usability study.
+      </p>
+      <label for="size">Target diameter <output id="size-value">36</output> px</label
+      ><input id="size" type="range" min="16" max="72" value="36" />
+      <div class="targets" aria-label="Selectable targets">
+        <button aria-label="First target"></button><button aria-label="Second target"></button
+        ><button aria-label="Third target"></button><button aria-label="Fourth target"></button>
+      </div>
+      <p id="result" role="status">Choose a target to begin.</p>
+      <small id="note"></small>
+    </main>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

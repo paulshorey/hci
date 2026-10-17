@@ -1,0 +1,4 @@
+# Payload/Drizzle artifacts retain their native format and are derived from config.
+src/generated/** linguist-generated=true
+src/migrations/*.json linguist-generated=true
+src/migrations/*.ts whitespace=-blank-at-eol,-space-before-tab

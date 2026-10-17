@@ -1,0 +1,61 @@
+name: Railway infrastructure
+on:
+  pull_request:
+    paths: ['.railway/**', '.github/workflows/railway.yml', 'package.json', 'pnpm-lock.yaml']
+  push:
+    branches: [main, prod]
+    paths: ['.railway/**', '.github/workflows/railway.yml', 'package.json', 'pnpm-lock.yaml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: railway-${{ github.event.pull_request.base.ref || github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  configure:
+    if: >-
+      vars.HCI_RAILWAY_PROJECT_ID != '' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    environment: ${{ (github.event.pull_request.base.ref || github.ref_name) == 'prod' && 'production' || 'development' }}
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      HCI_RAILWAY_PROJECT_ID: ${{ vars.HCI_RAILWAY_PROJECT_ID }}
+      HCI_RAILWAY_ENVIRONMENT_ID: ${{ vars.HCI_RAILWAY_ENVIRONMENT_ID }}
+      HCI_RAILWAY_TARGET: ${{ (github.event.pull_request.base.ref || github.ref_name) == 'prod' && 'production' || 'development' }}
+      HCI_BUCKET_REGION: ${{ vars.HCI_BUCKET_REGION }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install pinned native Railway CLI
+        run: |
+          mkdir -p "$RUNNER_TEMP/railway"
+          curl -fsSL https://github.com/railwayapp/cli/releases/download/v5.62.1/railway-v5.62.1-x86_64-unknown-linux-musl.tar.gz | tar -xz -C "$RUNNER_TEMP/railway"
+          echo "$RUNNER_TEMP/railway" >> "$GITHUB_PATH"
+      - name: Verify target and branch
+        env:
+          TARGET_BRANCH: ${{ github.event.pull_request.base.ref || github.ref_name }}
+        run: |
+          test -n "$RAILWAY_TOKEN"
+          test -n "$HCI_RAILWAY_PROJECT_ID"
+          test -n "$HCI_RAILWAY_ENVIRONMENT_ID"
+          case "$TARGET_BRANCH" in main|prod) ;; *) exit 1 ;; esac
+      - name: Plan exact environment
+        env:
+          RAILWAY_PROJECT_ID: ${{ vars.HCI_RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.HCI_RAILWAY_ENVIRONMENT_ID }}
+        run: railway config plan --file .railway/railway.ts --out "$RUNNER_TEMP/railway-plan.json"
+      - name: Apply fresh push plan
+        if: github.event_name != 'pull_request'
+        env:
+          RAILWAY_PROJECT_ID: ${{ vars.HCI_RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.HCI_RAILWAY_ENVIRONMENT_ID }}
+        run: |
+          test "$(git ls-remote origin "refs/heads/$GITHUB_REF_NAME" | cut -f1)" = "$GITHUB_SHA"
+          railway config apply --plan "$RUNNER_TEMP/railway-plan.json" --yes
+          railway config plan --file .railway/railway.ts --detailed-exit-code

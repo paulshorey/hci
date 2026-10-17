@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: hci
+      POSTGRES_PASSWORD: hci
+      POSTGRES_DB: hci
+    ports:
+      - '127.0.0.1:55432:5432'
+    volumes:
+      - hci-postgres:/var/lib/postgresql/data
+      - ./scripts/local-init.sql:/docker-entrypoint-initdb.d/10-hci-test.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U hci -d hci']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+volumes:
+  hci-postgres:
