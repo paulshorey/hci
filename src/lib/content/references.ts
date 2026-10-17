@@ -72,7 +72,16 @@ export async function rejectPublishedReferences(
         featuredSnippet: true,
         featuredSnippetSource: true,
         sources: true,
-        slides: { content: { image: true, video: true, download: true, link: true, embed: true } },
+        slides: {
+          content: {
+            image: true,
+            video: true,
+            audio: true,
+            download: true,
+            link: true,
+            embed: true,
+          },
+        },
       },
     })
     const post = result.docs.find((post) => references(post as Partial<Post>, kind, id))
@@ -85,6 +94,21 @@ export async function rejectPublishedReferences(
     page++
   }
   if (kind === 'media') {
+    const source = await req.payload.find({
+      collection: 'sources',
+      req,
+      overrideAccess: true,
+      draft: false,
+      depth: 0,
+      limit: 1,
+      where: { and: [{ _status: { equals: 'published' } }, { attachments: { equals: id } }] },
+      select: { title: true },
+    })
+    if (source.docs[0])
+      throw new APIError(
+        `This item is attached to the published source “${source.docs[0].title}”. Remove the attachment or unpublish the source first.`,
+        400,
+      )
     const site = await req.payload.findGlobal({
       slug: 'site-settings',
       req,

@@ -11,6 +11,15 @@ import { storageRoot } from '@/lib/env'
 
 export const Media: CollectionConfig = {
   slug: 'media',
+  folders: true,
+  admin: {
+    group: 'Library',
+    useAsTitle: 'title',
+    defaultColumns: ['title', 'filename', 'mimeType', 'filesize', 'visibility'],
+    listSearchableFields: ['title', 'filename', 'credit', 'alt'],
+    description:
+      'Upload photos, video, audio, PDFs, documents, datasets or downloadable ZIP archives. Organize files into folders. For runnable HTML/CSS/JS folders, use Import an interactive ZIP in the navigation.',
+  },
   access: { read: publicMedia, create: editor, update: editor, delete: admin },
   hooks: {
     beforeOperation: [protectMediaReplacement],
@@ -37,8 +46,22 @@ export const Media: CollectionConfig = {
       'image/gif',
       'video/mp4',
       'video/webm',
+      'video/quicktime',
+      'audio/mpeg',
+      'audio/mp4',
+      'audio/aac',
+      'audio/ogg',
+      'audio/wav',
+      'audio/x-wav',
+      'audio/flac',
       'application/pdf',
       'text/plain',
+      'text/csv',
+      'text/markdown',
+      'application/json',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
       'application/zip',
     ],
     imageSizes: [{ name: 'card', width: 960, height: 600, position: 'centre' }],

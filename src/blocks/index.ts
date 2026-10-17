@@ -16,6 +16,21 @@ export const contentBlocks: Block[] = [
   { slug: 'image', interfaceName: 'ImageBlock', fields: imageFields() },
   { slug: 'video', interfaceName: 'VideoBlock', fields: videoFields() },
   {
+    slug: 'audio',
+    interfaceName: 'AudioBlock',
+    fields: [
+      {
+        name: 'media',
+        type: 'upload',
+        relationTo: 'media',
+        required: true,
+        filterOptions: { mimeType: { like: 'audio/' } },
+      },
+      { name: 'transcript', type: 'textarea' },
+      ...captionFields(),
+    ],
+  },
+  {
     slug: 'link',
     interfaceName: 'LinkBlock',
     fields: [

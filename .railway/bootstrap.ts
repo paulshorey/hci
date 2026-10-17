@@ -5,5 +5,7 @@ import { deploymentResources } from './resources'
 export const partial = 'hci'
 export default defineRailway((ctx) => {
   const { postgres, assets } = deploymentResources(ctx)
-  return project('HCI', { resources: [postgres, assets, service('web'), service('embeds')] })
+  return project('HCI', {
+    resources: [postgres, ...(assets ? [assets] : []), service('web'), service('embeds')],
+  })
 })

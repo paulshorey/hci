@@ -2,7 +2,7 @@
 
 A reusable TypeScript blog for curated research and multimedia slideshows, built with Next.js, Payload, and PostgreSQL.
 
-Posts own ordered slides; each slide owns ordered, typed content blocks. Images, videos, links, rich text, downloads, and executable HTML/CSS/JS bundles can coexist in one slide. Reordering a slide preserves all of its content, captions, and sources.
+Posts own ordered slides; each slide owns ordered, typed content blocks. Images, videos, audio, links, rich text, downloads, and executable HTML/CSS/JS bundles can coexist in one slide. Reordering a slide preserves all of its content, captions, and sources.
 
 ## Local development
 
@@ -31,16 +31,18 @@ The seed includes three clearly labeled illustrative articles, generated interfa
 
 ## Editing content
 
-1. Upload images, videos, or documents in **Media**. Files start private; mark files public when they are ready for public delivery.
-2. Add evidence in **Sources**, including the original URL, publisher, access date, and optional archive URL. Editorial notes remain private.
+1. Upload images, video, audio, documents, datasets or downloadable ZIP archives in **Media**. Use folders to organize the library. Files start private; mark files public when they are ready for public delivery.
+2. Add evidence in **Sources**, including a web URL or uploaded evidence attachments, publisher, access date, and optional archive URL. Editorial notes remain private. Published attachments must be public and stay protected while their source is published.
 3. Create a **Post**. Set its title, unique slug, summary, optional article text, and optional featured image/video/link/bundle.
-4. Add slides in the **Slides** tab. Each slide can contain any number of text, image, video, link, download, or embed blocks. Choose a stacked or comparison layout.
+4. Add slides in the **Slides** tab. Each slide can contain any number of text, image, video, audio, link, download, or embed blocks. Choose a stacked or comparison layout.
 5. Add captions and image alt text. Publish referenced sources/bundles and make referenced files public before publishing the post.
 6. Use **Preview** to inspect an authenticated draft, then publish. A newer unpublished revision does not replace the public version.
 
 Published relationships remain protected after publication. Remove a managed reference from the published article, or unpublish that article, before replacing/cropping its media file, making it private, unpublishing its source/bundle, or deleting the referenced record. To revise published evidence while keeping the article live, upload a new Media record and explicitly select it in the article. Removing a reference only in a newer draft does not change the live article. Site logos similarly require public images and protect the chosen file until the logo is replaced.
 
 Site branding, descriptions, logo, internal navigation, and display time zone are managed in **Site Settings**. The initial display time zone is America/Chicago; stored timestamps remain absolute instants. Users have admin/editor roles. Only admins manage accounts, delete content, or change site settings. Public reads always enforce Payload access control; the public byline is separate from the private CMS account relationship.
+
+The Payload navigation links to the authenticated **Editor guide** and **Import an interactive ZIP**. The Snippets library also links to the importer; it does not offer an empty manual-create form. Ordinary ZIPs stay downloadable archives in Media; imported interactive ZIPs become isolated runnable bundles.
 
 ## Interactive bundles
 
@@ -56,7 +58,7 @@ Imported bundles start as drafts. Use the Preview button on the Snippet document
 
 The isolated embed server serves only manifest-listed files. It has no CMS HTTP routes and uses sandbox/CSP restrictions. Draft preview URLs are short-lived capabilities bound to one bundle. Relative resources share the capability path so previews work without exposing CMS cookies.
 
-See [architecture](docs/architecture.md) for the extension points and [storage](docs/storage.md) for limits and the sandbox contract.
+See [architecture](docs/architecture.md) for the extension points, [storage](docs/storage.md) for limits and the sandbox contract, and [storage options and account setup](docs/storage-options.md) for the researched provider comparison, credentials and recovery plan.
 
 ## Database workflow
 

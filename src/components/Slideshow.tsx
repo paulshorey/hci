@@ -24,8 +24,8 @@ export function Slideshow({
     slides.findIndex((slide) => `#slide-${slide.id}` === hash),
   )
   useEffect(() => {
-    root.current?.querySelectorAll('video').forEach((video) => {
-      if (all || video.closest('[hidden]')) video.pause()
+    root.current?.querySelectorAll<HTMLMediaElement>('video, audio').forEach((media) => {
+      if (all || media.closest('[hidden]')) media.pause()
     })
   }, [index, all])
   if (!slides.length) return null
@@ -40,7 +40,10 @@ export function Slideshow({
       aria-roledescription={all ? undefined : 'carousel'}
       onKeyDown={(event) => {
         const target = event.target as HTMLElement
-        if (all || target.closest('input, textarea, select, video, iframe, [contenteditable]'))
+        if (
+          all ||
+          target.closest('input, textarea, select, video, audio, iframe, [contenteditable]')
+        )
           return
         if (event.key === 'ArrowLeft') {
           event.preventDefault()
@@ -100,7 +103,7 @@ export function Slideshow({
         }}
         onTouchEnd={(event) => {
           const target = event.target as HTMLElement
-          if (all || target.closest('video, iframe, a, button')) return
+          if (all || target.closest('video, audio, iframe, a, button')) return
           const start = Number(root.current?.dataset.touchX)
           const delta = event.changedTouches[0].clientX - start
           if (Math.abs(delta) > 80) go(index + (delta < 0 ? 1 : -1))

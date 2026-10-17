@@ -9,14 +9,32 @@ import { VisibilityFrame } from './VisibilityFrame'
 export const mediaDocument = (value: unknown): Media | null =>
   value && typeof value === 'object' && 'url' in value ? (value as Media) : null
 const sourceDocument = (value: unknown): Source | null =>
-  value && typeof value === 'object' && 'url' in value ? (value as Source) : null
+  value && typeof value === 'object' && 'accessedAt' in value ? (value as Source) : null
 
 export function Citation({ source }: { source?: unknown }) {
   const doc = sourceDocument(source)
-  return doc ? (
-    <a className="citation" href={doc.url} target="_blank" rel="noopener noreferrer">
+  const href = doc?.url || mediaDocument(doc?.attachments?.[0])?.url
+  return doc && href ? (
+    <a className="citation" href={href} target="_blank" rel="noopener noreferrer">
       Source: {doc.publisher || doc.title} ↗
     </a>
+  ) : null
+}
+
+export function SourceAttachments({ source }: { source: Source }) {
+  return source.attachments?.length ? (
+    <ul>
+      {source.attachments.map((value) => {
+        const file = mediaDocument(value)
+        return file?.url ? (
+          <li key={file.id}>
+            <a href={file.url} download>
+              {file.title || file.filename} ↓
+            </a>
+          </li>
+        ) : null
+      })}
+    </ul>
   ) : null
 }
 
@@ -135,6 +153,25 @@ export function ContentBlock({
       return <ImageContent value={block} />
     case 'video':
       return <VideoContent value={block} />
+    case 'audio': {
+      const file = mediaDocument(block.media)
+      return (
+        <figure className="media-figure">
+          {file?.url ? (
+            <audio controls preload="none" src={file.url} aria-label={block.caption || 'Audio'} />
+          ) : (
+            <p>Audio unavailable.</p>
+          )}
+          <Caption caption={block.caption} source={block.source} />
+          {block.transcript && (
+            <details className="transcript">
+              <summary>Read transcript</summary>
+              <p>{block.transcript}</p>
+            </details>
+          )}
+        </figure>
+      )
+    }
     case 'embed':
       return (
         <SnippetContent

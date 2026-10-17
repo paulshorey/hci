@@ -7,6 +7,7 @@ import bootstrap from '../../.railway/bootstrap'
 test('infrastructure guards exact targets, preserves named resources and isolates embed secrets', async () => {
   const original = { ...process.env }
   try {
+    delete process.env.HCI_STORAGE_PROVIDER
     process.env.HCI_RAILWAY_PROJECT_ID = 'test-project'
     process.env.HCI_RAILWAY_ENVIRONMENT_ID = 'test-environment'
     process.env.HCI_RAILWAY_TARGET = 'development'
@@ -45,12 +46,25 @@ test('infrastructure guards exact targets, preserves named resources and isolate
     const production = await application(context, project)
     const prodWeb = (production.resources || []).flat().find((resource) => resource.name === 'web')!
     assert(prodWeb.type === 'service' && prodWeb.source?.branch === 'prod')
+    process.env.HCI_STORAGE_PROVIDER = 'external-s3'
+    delete process.env.HCI_BUCKET_REGION
+    const external = await application(context, project)
+    assert.deepEqual(
+      (external.resources || [])
+        .flat()
+        .map((resource) => resource.name)
+        .sort(),
+      ['embeds', 'postgres', 'web'],
+    )
+    process.env.HCI_STORAGE_PROVIDER = 'unknown'
+    await assert.rejects(async () => application(context, project), /HCI_STORAGE_PROVIDER/)
   } finally {
     for (const name of [
       'HCI_RAILWAY_PROJECT_ID',
       'HCI_RAILWAY_ENVIRONMENT_ID',
       'HCI_RAILWAY_TARGET',
       'HCI_BUCKET_REGION',
+      'HCI_STORAGE_PROVIDER',
     ]) {
       if (original[name] === undefined) delete process.env[name]
       else process.env[name] = original[name]

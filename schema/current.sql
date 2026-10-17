@@ -49,6 +49,10 @@ CREATE TYPE public.enum_media_visibility AS ENUM (
     'public'
 );
 
+CREATE TYPE public.enum_payload_folders_folder_type AS ENUM (
+    'media'
+);
+
 CREATE TYPE public.enum_posts_blocks_video_source_type AS ENUM (
     'upload',
     'external'
@@ -123,6 +127,29 @@ CREATE TABLE public._posts_v (
     version_featured_snippet_caption character varying,
     version_featured_snippet_source_id integer
 );
+
+CREATE TABLE public._posts_v_blocks_audio (
+    _order integer NOT NULL,
+    _parent_id integer NOT NULL,
+    _path text NOT NULL,
+    id integer NOT NULL,
+    media_id integer,
+    transcript character varying,
+    caption character varying,
+    source_id integer,
+    _uuid character varying,
+    block_name character varying
+);
+
+CREATE SEQUENCE public._posts_v_blocks_audio_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public._posts_v_blocks_audio_id_seq OWNED BY public._posts_v_blocks_audio.id;
 
 CREATE TABLE public._posts_v_blocks_download (
     _order integer NOT NULL,
@@ -367,6 +394,24 @@ CREATE SEQUENCE public._sources_v_id_seq
 
 ALTER SEQUENCE public._sources_v_id_seq OWNED BY public._sources_v.id;
 
+CREATE TABLE public._sources_v_rels (
+    id integer NOT NULL,
+    "order" integer,
+    parent_id integer NOT NULL,
+    path character varying NOT NULL,
+    media_id integer
+);
+
+CREATE SEQUENCE public._sources_v_rels_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public._sources_v_rels_id_seq OWNED BY public._sources_v_rels.id;
+
 CREATE TABLE public.hci_migration_checksums (
     name text NOT NULL,
     checksum text NOT NULL
@@ -397,7 +442,10 @@ CREATE TABLE public.media (
     sizes_card_filesize numeric,
     sizes_card_filename character varying,
     credit_u_r_l character varying,
-    license character varying
+    license character varying,
+    prefix character varying DEFAULT 'media'::character varying,
+    _objectkey character varying,
+    folder_id integer
 );
 
 CREATE SEQUENCE public.media_id_seq
@@ -409,6 +457,41 @@ CREATE SEQUENCE public.media_id_seq
     CACHE 1;
 
 ALTER SEQUENCE public.media_id_seq OWNED BY public.media.id;
+
+CREATE TABLE public.payload_folders (
+    id integer NOT NULL,
+    name character varying NOT NULL,
+    folder_id integer,
+    updated_at timestamp(3) with time zone DEFAULT now() NOT NULL,
+    created_at timestamp(3) with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.payload_folders_folder_type (
+    "order" integer NOT NULL,
+    parent_id integer NOT NULL,
+    value public.enum_payload_folders_folder_type,
+    id integer NOT NULL
+);
+
+CREATE SEQUENCE public.payload_folders_folder_type_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.payload_folders_folder_type_id_seq OWNED BY public.payload_folders_folder_type.id;
+
+CREATE SEQUENCE public.payload_folders_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.payload_folders_id_seq OWNED BY public.payload_folders.id;
 
 CREATE TABLE public.payload_kv (
     id integer NOT NULL,
@@ -453,7 +536,8 @@ CREATE TABLE public.payload_locked_documents_rels (
     media_id integer,
     sources_id integer,
     topics_id integer,
-    snippets_id integer
+    snippets_id integer,
+    payload_folders_id integer
 );
 
 CREATE SEQUENCE public.payload_locked_documents_rels_id_seq
@@ -549,6 +633,18 @@ CREATE TABLE public.posts (
     _status public.enum_posts_status DEFAULT 'draft'::public.enum_posts_status,
     featured_snippet_caption character varying,
     featured_snippet_source_id integer
+);
+
+CREATE TABLE public.posts_blocks_audio (
+    _order integer NOT NULL,
+    _parent_id integer NOT NULL,
+    _path text NOT NULL,
+    id character varying NOT NULL,
+    media_id integer,
+    transcript character varying,
+    caption character varying,
+    source_id integer,
+    block_name character varying
 );
 
 CREATE TABLE public.posts_blocks_download (
@@ -737,6 +833,24 @@ CREATE SEQUENCE public.sources_id_seq
 
 ALTER SEQUENCE public.sources_id_seq OWNED BY public.sources.id;
 
+CREATE TABLE public.sources_rels (
+    id integer NOT NULL,
+    "order" integer,
+    parent_id integer NOT NULL,
+    path character varying NOT NULL,
+    media_id integer
+);
+
+CREATE SEQUENCE public.sources_rels_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.sources_rels_id_seq OWNED BY public.sources_rels.id;
+
 CREATE TABLE public.topics (
     id integer NOT NULL,
     title character varying NOT NULL,
@@ -792,6 +906,8 @@ CREATE TABLE public.users_sessions (
 
 ALTER TABLE ONLY public._posts_v ALTER COLUMN id SET DEFAULT nextval('public._posts_v_id_seq'::regclass);
 
+ALTER TABLE ONLY public._posts_v_blocks_audio ALTER COLUMN id SET DEFAULT nextval('public._posts_v_blocks_audio_id_seq'::regclass);
+
 ALTER TABLE ONLY public._posts_v_blocks_download ALTER COLUMN id SET DEFAULT nextval('public._posts_v_blocks_download_id_seq'::regclass);
 
 ALTER TABLE ONLY public._posts_v_blocks_embed ALTER COLUMN id SET DEFAULT nextval('public._posts_v_blocks_embed_id_seq'::regclass);
@@ -812,7 +928,13 @@ ALTER TABLE ONLY public._snippets_v ALTER COLUMN id SET DEFAULT nextval('public.
 
 ALTER TABLE ONLY public._sources_v ALTER COLUMN id SET DEFAULT nextval('public._sources_v_id_seq'::regclass);
 
+ALTER TABLE ONLY public._sources_v_rels ALTER COLUMN id SET DEFAULT nextval('public._sources_v_rels_id_seq'::regclass);
+
 ALTER TABLE ONLY public.media ALTER COLUMN id SET DEFAULT nextval('public.media_id_seq'::regclass);
+
+ALTER TABLE ONLY public.payload_folders ALTER COLUMN id SET DEFAULT nextval('public.payload_folders_id_seq'::regclass);
+
+ALTER TABLE ONLY public.payload_folders_folder_type ALTER COLUMN id SET DEFAULT nextval('public.payload_folders_folder_type_id_seq'::regclass);
 
 ALTER TABLE ONLY public.payload_kv ALTER COLUMN id SET DEFAULT nextval('public.payload_kv_id_seq'::regclass);
 
@@ -836,9 +958,14 @@ ALTER TABLE ONLY public.snippets ALTER COLUMN id SET DEFAULT nextval('public.sni
 
 ALTER TABLE ONLY public.sources ALTER COLUMN id SET DEFAULT nextval('public.sources_id_seq'::regclass);
 
+ALTER TABLE ONLY public.sources_rels ALTER COLUMN id SET DEFAULT nextval('public.sources_rels_id_seq'::regclass);
+
 ALTER TABLE ONLY public.topics ALTER COLUMN id SET DEFAULT nextval('public.topics_id_seq'::regclass);
 
 ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
+
+ALTER TABLE ONLY public._posts_v_blocks_audio
+    ADD CONSTRAINT _posts_v_blocks_audio_pkey PRIMARY KEY (id);
 
 ALTER TABLE ONLY public._posts_v_blocks_download
     ADD CONSTRAINT _posts_v_blocks_download_pkey PRIMARY KEY (id);
@@ -873,11 +1000,20 @@ ALTER TABLE ONLY public._snippets_v
 ALTER TABLE ONLY public._sources_v
     ADD CONSTRAINT _sources_v_pkey PRIMARY KEY (id);
 
+ALTER TABLE ONLY public._sources_v_rels
+    ADD CONSTRAINT _sources_v_rels_pkey PRIMARY KEY (id);
+
 ALTER TABLE ONLY public.hci_migration_checksums
     ADD CONSTRAINT hci_migration_checksums_pkey PRIMARY KEY (name);
 
 ALTER TABLE ONLY public.media
     ADD CONSTRAINT media_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.payload_folders_folder_type
+    ADD CONSTRAINT payload_folders_folder_type_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.payload_folders
+    ADD CONSTRAINT payload_folders_pkey PRIMARY KEY (id);
 
 ALTER TABLE ONLY public.payload_kv
     ADD CONSTRAINT payload_kv_pkey PRIMARY KEY (id);
@@ -896,6 +1032,9 @@ ALTER TABLE ONLY public.payload_preferences
 
 ALTER TABLE ONLY public.payload_preferences_rels
     ADD CONSTRAINT payload_preferences_rels_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.posts_blocks_audio
+    ADD CONSTRAINT posts_blocks_audio_pkey PRIMARY KEY (id);
 
 ALTER TABLE ONLY public.posts_blocks_download
     ADD CONSTRAINT posts_blocks_download_pkey PRIMARY KEY (id);
@@ -936,6 +1075,9 @@ ALTER TABLE ONLY public.snippets
 ALTER TABLE ONLY public.sources
     ADD CONSTRAINT sources_pkey PRIMARY KEY (id);
 
+ALTER TABLE ONLY public.sources_rels
+    ADD CONSTRAINT sources_rels_pkey PRIMARY KEY (id);
+
 ALTER TABLE ONLY public.topics
     ADD CONSTRAINT topics_pkey PRIMARY KEY (id);
 
@@ -946,6 +1088,16 @@ ALTER TABLE ONLY public.users_sessions
     ADD CONSTRAINT users_sessions_pkey PRIMARY KEY (id);
 
 CREATE INDEX _posts_v_autosave_idx ON public._posts_v USING btree (autosave);
+
+CREATE INDEX _posts_v_blocks_audio_media_idx ON public._posts_v_blocks_audio USING btree (media_id);
+
+CREATE INDEX _posts_v_blocks_audio_order_idx ON public._posts_v_blocks_audio USING btree (_order);
+
+CREATE INDEX _posts_v_blocks_audio_parent_id_idx ON public._posts_v_blocks_audio USING btree (_parent_id);
+
+CREATE INDEX _posts_v_blocks_audio_path_idx ON public._posts_v_blocks_audio USING btree (_path);
+
+CREATE INDEX _posts_v_blocks_audio_source_idx ON public._posts_v_blocks_audio USING btree (source_id);
 
 CREATE INDEX _posts_v_blocks_download_media_idx ON public._posts_v_blocks_download USING btree (media_id);
 
@@ -1073,6 +1225,14 @@ CREATE INDEX _sources_v_latest_idx ON public._sources_v USING btree (latest);
 
 CREATE INDEX _sources_v_parent_idx ON public._sources_v USING btree (parent_id);
 
+CREATE INDEX _sources_v_rels_media_id_idx ON public._sources_v_rels USING btree (media_id);
+
+CREATE INDEX _sources_v_rels_order_idx ON public._sources_v_rels USING btree ("order");
+
+CREATE INDEX _sources_v_rels_parent_idx ON public._sources_v_rels USING btree (parent_id);
+
+CREATE INDEX _sources_v_rels_path_idx ON public._sources_v_rels USING btree (path);
+
 CREATE INDEX _sources_v_updated_at_idx ON public._sources_v USING btree (updated_at);
 
 CREATE INDEX _sources_v_version_version__status_idx ON public._sources_v USING btree (version__status);
@@ -1085,11 +1245,25 @@ CREATE INDEX media_created_at_idx ON public.media USING btree (created_at);
 
 CREATE UNIQUE INDEX media_filename_idx ON public.media USING btree (filename);
 
+CREATE INDEX media_folder_idx ON public.media USING btree (folder_id);
+
 CREATE INDEX media_sizes_card_sizes_card_filename_idx ON public.media USING btree (sizes_card_filename);
 
 CREATE INDEX media_source_idx ON public.media USING btree (source_id);
 
 CREATE INDEX media_updated_at_idx ON public.media USING btree (updated_at);
+
+CREATE INDEX payload_folders_created_at_idx ON public.payload_folders USING btree (created_at);
+
+CREATE INDEX payload_folders_folder_idx ON public.payload_folders USING btree (folder_id);
+
+CREATE INDEX payload_folders_folder_type_order_idx ON public.payload_folders_folder_type USING btree ("order");
+
+CREATE INDEX payload_folders_folder_type_parent_idx ON public.payload_folders_folder_type USING btree (parent_id);
+
+CREATE INDEX payload_folders_name_idx ON public.payload_folders USING btree (name);
+
+CREATE INDEX payload_folders_updated_at_idx ON public.payload_folders USING btree (updated_at);
 
 CREATE UNIQUE INDEX payload_kv_key_idx ON public.payload_kv USING btree (key);
 
@@ -1104,6 +1278,8 @@ CREATE INDEX payload_locked_documents_rels_order_idx ON public.payload_locked_do
 CREATE INDEX payload_locked_documents_rels_parent_idx ON public.payload_locked_documents_rels USING btree (parent_id);
 
 CREATE INDEX payload_locked_documents_rels_path_idx ON public.payload_locked_documents_rels USING btree (path);
+
+CREATE INDEX payload_locked_documents_rels_payload_folders_id_idx ON public.payload_locked_documents_rels USING btree (payload_folders_id);
 
 CREATE INDEX payload_locked_documents_rels_posts_id_idx ON public.payload_locked_documents_rels USING btree (posts_id);
 
@@ -1138,6 +1314,16 @@ CREATE INDEX payload_preferences_updated_at_idx ON public.payload_preferences US
 CREATE INDEX posts__status_idx ON public.posts USING btree (_status);
 
 CREATE INDEX posts_author_idx ON public.posts USING btree (author_id);
+
+CREATE INDEX posts_blocks_audio_media_idx ON public.posts_blocks_audio USING btree (media_id);
+
+CREATE INDEX posts_blocks_audio_order_idx ON public.posts_blocks_audio USING btree (_order);
+
+CREATE INDEX posts_blocks_audio_parent_id_idx ON public.posts_blocks_audio USING btree (_parent_id);
+
+CREATE INDEX posts_blocks_audio_path_idx ON public.posts_blocks_audio USING btree (_path);
+
+CREATE INDEX posts_blocks_audio_source_idx ON public.posts_blocks_audio USING btree (source_id);
 
 CREATE INDEX posts_blocks_download_media_idx ON public.posts_blocks_download USING btree (media_id);
 
@@ -1249,6 +1435,14 @@ CREATE INDEX sources__status_idx ON public.sources USING btree (_status);
 
 CREATE INDEX sources_created_at_idx ON public.sources USING btree (created_at);
 
+CREATE INDEX sources_rels_media_id_idx ON public.sources_rels USING btree (media_id);
+
+CREATE INDEX sources_rels_order_idx ON public.sources_rels USING btree ("order");
+
+CREATE INDEX sources_rels_parent_idx ON public.sources_rels USING btree (parent_id);
+
+CREATE INDEX sources_rels_path_idx ON public.sources_rels USING btree (path);
+
 CREATE INDEX sources_updated_at_idx ON public.sources USING btree (updated_at);
 
 CREATE INDEX topics_created_at_idx ON public.topics USING btree (created_at);
@@ -1266,6 +1460,15 @@ CREATE INDEX users_sessions_order_idx ON public.users_sessions USING btree (_ord
 CREATE INDEX users_sessions_parent_id_idx ON public.users_sessions USING btree (_parent_id);
 
 CREATE INDEX users_updated_at_idx ON public.users USING btree (updated_at);
+
+ALTER TABLE ONLY public._posts_v_blocks_audio
+    ADD CONSTRAINT _posts_v_blocks_audio_media_id_media_id_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public._posts_v_blocks_audio
+    ADD CONSTRAINT _posts_v_blocks_audio_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public._posts_v(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public._posts_v_blocks_audio
+    ADD CONSTRAINT _posts_v_blocks_audio_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
 
 ALTER TABLE ONLY public._posts_v_blocks_download
     ADD CONSTRAINT _posts_v_blocks_download_media_id_media_id_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE SET NULL;
@@ -1360,14 +1563,32 @@ ALTER TABLE ONLY public._snippets_v
 ALTER TABLE ONLY public._sources_v
     ADD CONSTRAINT _sources_v_parent_id_sources_id_fk FOREIGN KEY (parent_id) REFERENCES public.sources(id) ON DELETE SET NULL;
 
+ALTER TABLE ONLY public._sources_v_rels
+    ADD CONSTRAINT _sources_v_rels_media_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public._sources_v_rels
+    ADD CONSTRAINT _sources_v_rels_parent_fk FOREIGN KEY (parent_id) REFERENCES public._sources_v(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.media
+    ADD CONSTRAINT media_folder_id_payload_folders_id_fk FOREIGN KEY (folder_id) REFERENCES public.payload_folders(id) ON DELETE SET NULL;
+
 ALTER TABLE ONLY public.media
     ADD CONSTRAINT media_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.payload_folders
+    ADD CONSTRAINT payload_folders_folder_id_payload_folders_id_fk FOREIGN KEY (folder_id) REFERENCES public.payload_folders(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.payload_folders_folder_type
+    ADD CONSTRAINT payload_folders_folder_type_parent_fk FOREIGN KEY (parent_id) REFERENCES public.payload_folders(id) ON DELETE CASCADE;
 
 ALTER TABLE ONLY public.payload_locked_documents_rels
     ADD CONSTRAINT payload_locked_documents_rels_media_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE CASCADE;
 
 ALTER TABLE ONLY public.payload_locked_documents_rels
     ADD CONSTRAINT payload_locked_documents_rels_parent_fk FOREIGN KEY (parent_id) REFERENCES public.payload_locked_documents(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.payload_locked_documents_rels
+    ADD CONSTRAINT payload_locked_documents_rels_payload_folders_fk FOREIGN KEY (payload_folders_id) REFERENCES public.payload_folders(id) ON DELETE CASCADE;
 
 ALTER TABLE ONLY public.payload_locked_documents_rels
     ADD CONSTRAINT payload_locked_documents_rels_posts_fk FOREIGN KEY (posts_id) REFERENCES public.posts(id) ON DELETE CASCADE;
@@ -1392,6 +1613,15 @@ ALTER TABLE ONLY public.payload_preferences_rels
 
 ALTER TABLE ONLY public.posts
     ADD CONSTRAINT posts_author_id_users_id_fk FOREIGN KEY (author_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.posts_blocks_audio
+    ADD CONSTRAINT posts_blocks_audio_media_id_media_id_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.posts_blocks_audio
+    ADD CONSTRAINT posts_blocks_audio_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.posts(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.posts_blocks_audio
+    ADD CONSTRAINT posts_blocks_audio_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
 
 ALTER TABLE ONLY public.posts_blocks_download
     ADD CONSTRAINT posts_blocks_download_media_id_media_id_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE SET NULL;
@@ -1479,6 +1709,12 @@ ALTER TABLE ONLY public.site_settings
 
 ALTER TABLE ONLY public.site_settings_navigation
     ADD CONSTRAINT site_settings_navigation_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.site_settings(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.sources_rels
+    ADD CONSTRAINT sources_rels_media_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.sources_rels
+    ADD CONSTRAINT sources_rels_parent_fk FOREIGN KEY (parent_id) REFERENCES public.sources(id) ON DELETE CASCADE;
 
 ALTER TABLE ONLY public.users_sessions
     ADD CONSTRAINT users_sessions_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.users(id) ON DELETE CASCADE;

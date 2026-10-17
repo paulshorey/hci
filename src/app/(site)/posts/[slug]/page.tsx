@@ -9,6 +9,7 @@ import {
   SnippetContent,
   ContentBlock,
   mediaDocument,
+  SourceAttachments,
 } from '@/components/Content'
 import { Slideshow } from '@/components/Slideshow'
 
@@ -125,14 +126,19 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
                 (source) =>
                   typeof source === 'object' && (
                     <li key={source.id}>
-                      <a href={source.url} target="_blank" rel="noopener noreferrer">
-                        {source.title} ↗
-                      </a>
+                      {source.url ? (
+                        <a href={source.url} target="_blank" rel="noopener noreferrer">
+                          {source.title} ↗
+                        </a>
+                      ) : (
+                        <span>{source.title}</span>
+                      )}
                       <p>
                         {source.publisher}
                         {source.accessedAt &&
                           ` · Accessed ${new Date(source.accessedAt).toLocaleDateString('en-US', { timeZone: site.timeZone })}`}
                       </p>
+                      <SourceAttachments source={source} />
                       {source.archiveURL && (
                         <a
                           className="citation"

@@ -14,7 +14,6 @@ import {
   FixedToolbarFeature,
   InlineToolbarFeature,
 } from '@payloadcms/richtext-lexical'
-import { s3Storage } from '@payloadcms/storage-s3'
 import { buildConfig } from 'payload'
 import sharp from 'sharp'
 import { Posts } from '@/collections/Posts'
@@ -24,20 +23,35 @@ import { Snippets } from '@/collections/Snippets'
 import { Topics } from '@/collections/Topics'
 import { Users } from '@/collections/Users'
 import { SiteSettings } from '@/collections/SiteSettings'
-import { required, secret, siteURL } from '@/lib/env'
-import { s3Config } from '@/lib/storage'
+import { assertDurableStorage, mediaUploadLimitMB, required, secret, siteURL } from '@/lib/env'
+import { mediaStoragePlugin } from '@/lib/storage/payload'
+import { admin, editor } from '@/lib/content/access'
 import { bundleImportEndpoint } from '@/lib/snippets/endpoint'
 import { email } from '@/lib/email'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
+const maxFileSize = mediaUploadLimitMB() * 1024 * 1024
 export default buildConfig({
   secret: secret(),
   serverURL: siteURL(),
-  admin: { user: 'users', importMap: { baseDir: dirname } },
+  admin: {
+    user: 'users',
+    importMap: { baseDir: dirname },
+    components: { afterNavLinks: ['/components/EditorialLinks#EditorialLinks'] },
+  },
   csrf: [siteURL()],
   cors: [siteURL()],
   collections: [Users, Posts, Media, Sources, Topics, Snippets],
   globals: [SiteSettings],
+  folders: {
+    collectionOverrides: [
+      ({ collection }) => ({
+        ...collection,
+        access: { read: editor, create: editor, update: editor, delete: admin },
+      }),
+    ],
+  },
+  onInit: async () => assertDurableStorage(),
   endpoints: [bundleImportEndpoint],
   editor: lexicalEditor({
     features: [
@@ -55,7 +69,11 @@ export default buildConfig({
   }),
   sharp,
   email,
-  upload: { limits: { fileSize: 100 * 1024 * 1024 } },
+  upload: {
+    abortOnLimit: true,
+    requestSizeLimit: maxFileSize + 1024 * 1024,
+    limits: { fileSize: maxFileSize, files: 1 },
+  },
   graphQL: { disable: true },
   typescript: { outputFile: path.join(dirname, 'generated/payload-types.ts') },
   db: postgresAdapter({
@@ -64,14 +82,5 @@ export default buildConfig({
     migrationDir: path.join(dirname, 'migrations'),
     generateSchemaOutputFile: path.join(dirname, 'generated/payload-schema.ts'),
   }),
-  plugins:
-    process.env.STORAGE_DRIVER === 's3'
-      ? [
-          s3Storage({
-            bucket: required('S3_BUCKET'),
-            config: s3Config(),
-            collections: { media: { prefix: 'media' } },
-          }),
-        ]
-      : [],
+  plugins: [mediaStoragePlugin()],
 })

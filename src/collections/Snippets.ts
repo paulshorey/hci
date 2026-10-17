@@ -6,11 +6,18 @@ export const Snippets: CollectionConfig = {
   slug: 'snippets',
   admin: {
     useAsTitle: 'title',
+    group: 'Library',
+    hideAPIURL: false,
+    components: { beforeList: ['/components/EditorialLinks#BundleLibraryHelp'] },
     description:
       'Import a ZIP at /bundles/import, or use pnpm snippets:import. Files are immutable; import an update as a new version.',
     preview: (doc) => `/snippet-preview?id=${doc.id}`,
   },
-  access: editorialAccess,
+  access: {
+    ...editorialAccess,
+    create: ({ req }) => Boolean(req.user) && req.context.bundleImport === true,
+  },
+  disableDuplicate: true,
   versions: { drafts: true, maxPerDoc: 20 },
   hooks: {
     beforeOperation: [captureDraftSave],
@@ -44,6 +51,11 @@ export const Snippets: CollectionConfig = {
     },
     { name: 'bundleVersion', type: 'text', required: true, admin: { readOnly: true } },
     { name: 'entryFile', type: 'text', required: true, admin: { readOnly: true } },
-    { name: 'manifest', type: 'json', required: true, admin: { readOnly: true } },
+    {
+      type: 'collapsible',
+      label: 'File manifest',
+      admin: { initCollapsed: true },
+      fields: [{ name: 'manifest', type: 'json', required: true, admin: { readOnly: true } }],
+    },
   ],
 }

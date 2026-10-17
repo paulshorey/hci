@@ -66,6 +66,14 @@ export const validatePublication: CollectionBeforeChangeHook<Post> = async ({
               fail('Publish referenced media before publishing the post.')
             if (mimePrefix && (!('mimeType' in doc) || !doc.mimeType?.startsWith(mimePrefix)))
               fail(`Expected a ${mimePrefix} media file.`)
+            if (
+              mimePrefix === 'video/' &&
+              'mimeType' in doc &&
+              !['video/mp4', 'video/webm'].includes(doc.mimeType || '')
+            )
+              fail(
+                'Use browser-ready MP4 or WebM for playback; attach other video originals as downloads.',
+              )
           } else if (!('_status' in doc) || doc._status !== 'published')
             fail(`Publish the referenced ${collection} document first.`)
         })(),
@@ -74,7 +82,7 @@ export const validatePublication: CollectionBeforeChangeHook<Post> = async ({
   }
   const caption = (value: unknown) => {
     if (typeof value !== 'string' || !value.trim())
-      fail('Every published image, video, and embed needs a caption.')
+      fail('Every published image, video, audio, and embed needs a caption.')
   }
   const image = async (value: NonNullable<Post['featuredImage']>) => {
     caption(value.caption)
@@ -108,6 +116,10 @@ export const validatePublication: CollectionBeforeChangeHook<Post> = async ({
     for (const block of slide.content) {
       if (block.blockType === 'image') await image(block)
       if (block.blockType === 'video') await video(block)
+      if (block.blockType === 'audio') {
+        caption(block.caption)
+        await check('media', block.media, 'audio/')
+      }
       if (block.blockType === 'download') await check('media', block.media)
       if (block.blockType === 'embed') {
         caption(block.caption)

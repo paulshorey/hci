@@ -6,13 +6,23 @@ if (!new URL(required('DATABASE_URL')).pathname.endsWith('_test'))
   throw new Error('E2E accounts require a disposable test database.')
 const payload = await getPayload({ config })
 try {
-  await payload.create({
+  const owner = await payload.create({
     collection: 'users',
     data: {
-      name: 'Browser test editor',
+      name: 'Browser test administrator',
       email: required('HCI_E2E_EMAIL'),
       password: required('HCI_E2E_PASSWORD'),
       role: 'admin',
+    },
+  })
+  await payload.create({
+    collection: 'users',
+    user: { ...owner, collection: 'users' },
+    data: {
+      name: 'Browser test editor',
+      email: required('HCI_E2E_EDITOR_EMAIL'),
+      password: required('HCI_E2E_EDITOR_PASSWORD'),
+      role: 'editor',
     },
   })
 } finally {

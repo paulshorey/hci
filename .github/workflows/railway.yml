@@ -24,6 +24,7 @@ jobs:
       HCI_RAILWAY_ENVIRONMENT_ID: ${{ vars.HCI_RAILWAY_ENVIRONMENT_ID }}
       HCI_RAILWAY_TARGET: ${{ (github.event.pull_request.base.ref || github.ref_name) == 'prod' && 'production' || 'development' }}
       HCI_BUCKET_REGION: ${{ vars.HCI_BUCKET_REGION }}
+      HCI_STORAGE_PROVIDER: ${{ vars.HCI_STORAGE_PROVIDER }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

@@ -19,11 +19,16 @@ export default defineRailway((ctx) => {
     S3_REGION: ctx.shared.HCI_S3_REGION,
     S3_ACCESS_KEY_ID: ctx.shared.HCI_S3_ACCESS_KEY_ID,
     S3_SECRET_ACCESS_KEY: ctx.shared.HCI_S3_SECRET_ACCESS_KEY,
-    S3_FORCE_PATH_STYLE: 'false',
+    S3_FORCE_PATH_STYLE: ctx.shared.HCI_S3_FORCE_PATH_STYLE,
   }
   const web = service('web', {
     source: { repo: 'paulshorey/hci', branch },
-    env: { ...common, PAYLOAD_SECRET: preserve() },
+    env: {
+      ...common,
+      PAYLOAD_SECRET: preserve(),
+      MEDIA_MAX_UPLOAD_MB: '100',
+      S3_SIGNED_DOWNLOADS: 'true',
+    },
     build: { builder: 'RAILPACK', buildCommand: 'pnpm build' },
     deploy: {
       preDeployCommand: ['pnpm db:migrate'],
@@ -42,5 +47,5 @@ export default defineRailway((ctx) => {
       healthcheckTimeout: 60,
     },
   })
-  return project('HCI', { resources: [postgres, assets, web, embeds] })
+  return project('HCI', { resources: [postgres, ...(assets ? [assets] : []), web, embeds] })
 })

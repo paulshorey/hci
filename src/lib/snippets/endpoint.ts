@@ -1,5 +1,6 @@
 import type { Endpoint } from 'payload'
 import { importBundle, limits, readZip } from './bundles'
+import { bundleFormData, ImportRequestError } from './multipart'
 
 export const bundleImportEndpoint: Endpoint = {
   path: '/bundle-import',
@@ -7,11 +8,7 @@ export const bundleImportEndpoint: Endpoint = {
   handler: async (req) => {
     if (!req.user) return Response.json({ error: 'Sign in to import bundles.' }, { status: 401 })
     try {
-      const declaredLength = Number(req.headers.get('content-length') || 0)
-      if (declaredLength > limits.zip + 1024 * 1024)
-        return Response.json({ error: 'ZIP exceeds 25 MB.' }, { status: 413 })
-      if (!req.formData) throw new Error('Expected multipart form data.')
-      const form = await req.formData()
+      const form = await bundleFormData(req)
       const file = form.get('file')
       const title = String(form.get('title') || '')
       const entryFile = String(form.get('entryFile') || 'index.html')
@@ -35,9 +32,11 @@ export const bundleImportEndpoint: Endpoint = {
       return Response.json(
         {
           error:
-            'Import failed. Check the ZIP paths, file types, size limits, and entry HTML file.',
+            error instanceof ImportRequestError
+              ? error.message
+              : 'Import failed. Check the ZIP paths, file types, size limits, and entry HTML file.',
         },
-        { status: 400 },
+        { status: error instanceof ImportRequestError ? error.status : 400 },
       )
     }
   },

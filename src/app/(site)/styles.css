@@ -406,6 +406,9 @@ button {
   border: 1px solid var(--line);
   object-fit: contain;
 }
+.media-figure > audio {
+  width: 100%;
+}
 .media-figure figcaption {
   font-size: 12px;
   color: var(--muted);

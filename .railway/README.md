@@ -4,9 +4,9 @@ The graph is prepared and type-checked; no Railway project, bucket, domain, or p
 
 ## Select the deployment target
 
-Use a dedicated HCI project or the named `hci` partial within an explicitly selected shared project. The partial owns Postgres, the asset bucket, the web/CMS service, and the isolated embed service. Preserve other partials.
+Use a dedicated HCI project or the named `hci` partial within an explicitly selected shared project. The partial owns Postgres, the optional Railway asset bucket, the web/CMS service, and the isolated embed service. Preserve other partials.
 
-Before provisioning, decide the workspace/project, development and production environment IDs, public hostnames, and bucket region. Bucket region is required and immutable. The file refuses to evaluate without exact project/environment guards and a target of `development` or `production`.
+Before provisioning, decide the workspace/project, development and production environment IDs, public hostnames, and bucket region. Bucket region is required and immutable when using Railway Buckets. Set HCI_STORAGE_PROVIDER=external-s3 for an external private R2/AWS bucket; the default railway creates the native bucket. Choose this before the first apply: changing it later can remove the owned Railway bucket and requires a separate verified data migration. The file refuses to evaluate without exact project/environment guards and a target of `development` or `production`.
 
 Use the workspace's explicit local credential profile. Keep project/environment tokens and all secret values outside Git. Authenticate and verify the selected project before planning. A valid local type-check is not proof of provider access.
 
@@ -21,7 +21,8 @@ For each environment, create the Railway environment and set these authoring var
 | `HCI_RAILWAY_PROJECT_ID`     | Exact selected project; also a repository variable to enable CI |
 | `HCI_RAILWAY_ENVIRONMENT_ID` | Exact selected environment                                      |
 | `HCI_RAILWAY_TARGET`         | `development` or `production`                                   |
-| `HCI_BUCKET_REGION`          | Explicit choice of `sjc`, `iad`, `ams`, or `sin`                |
+| `HCI_STORAGE_PROVIDER`       | `railway` (default) or `external-s3` for R2/AWS                 |
+| `HCI_BUCKET_REGION`          | Railway buckets only: `sjc`, `iad`, `ams`, or `sin`             |
 
 GitHub environments are `development` and `production`. Each needs its own environment-scoped `RAILWAY_TOKEN` secret. Configure production approval protection as appropriate. Branches are `main` and `prod` respectively.
 
@@ -36,6 +37,7 @@ The graph references these Railway shared variables:
 | `HCI_S3_ENDPOINT`          | Bucket's S3 endpoint                              |
 | `HCI_S3_REGION`            | Bucket's S3 signing region                        |
 | `HCI_S3_ACCESS_KEY_ID`     | Generated bucket credential reference             |
+| `HCI_S3_FORCE_PATH_STYLE`  | `true` for R2; provider-specific otherwise        |
 | `HCI_S3_SECRET_ACCESS_KEY` | Generated bucket credential reference             |
 
 Set a separate random `PAYLOAD_SECRET` on the web service; IaC preserves it. Configure optional `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, and `SMTP_FROM_NAME` on that service before relying on password recovery. Add those settings to the owning IaC environment map when enabling them.
@@ -47,9 +49,9 @@ railway config plan --file .railway/bootstrap.ts
 railway config apply --file .railway/bootstrap.ts
 ```
 
-This creates the named database, bucket, and empty web/embed services without deploying application code. Obtain the bucket's actual endpoint/region/name and generate service domains, then fill the shared references and web secret before planning the complete graph below. Both files share the same resource definitions and partial ownership. **Never apply the bootstrap graph to an initialized environment:** its omitted configuration would remove application settings. Use the full graph for all subsequent operations. Never substitute example credentials or fake project IDs. Verify the complete plan contains no deletion of unrelated resources.
+This creates the named database, optional Railway bucket, and empty web/embed services without deploying application code. Obtain the selected provider's actual bucket endpoint/region/name and generate service domains, then fill the shared references and web secret before planning the complete graph below. Both files share the same resource definitions and partial ownership. **Never apply the bootstrap graph to an initialized environment:** its omitted configuration would remove application settings. Use the full graph for all subsequent operations. Never substitute example credentials or fake project IDs. Verify the complete plan contains no deletion of unrelated resources.
 
-The Postgres image is pinned to major 17. The application build runs without reading the database, and pre-deploy runs `pnpm db:migrate` over private networking. Ensure the built image retains `src/migrations`, the scripts, and runtime dependencies. Neither service requires a writable application filesystem with S3 storage. Avoid persistent disk configuration across these two separate containers.
+The Postgres image is pinned to major 17. The application build runs without reading the database, and pre-deploy runs `pnpm db:migrate` over private networking. Ensure the built image retains `src/migrations`, the scripts, and runtime dependencies. Public media delivery uses five-minute signed bucket URLs after authorization; authenticated editor delivery and isolated bundles remain proxied. Neither service requires a writable application filesystem with S3 storage. Avoid persistent disk configuration across these two separate containers.
 
 ## Plan, apply, verify
 
@@ -75,3 +77,5 @@ After provisioning or release:
 8. Enable database backups and retain matching object storage/version history. A database backup alone does not contain media files.
 
 For production promotions, review all pending migrations and promote the complete reviewed `main` branch into `prod`. Prefer additive/backfill changes so the previous release can remain running while migrations apply. A failed migration blocks rollout; already committed earlier migrations remain applied. Restore from a tested backup or use a reviewed forward repair rather than automatically running down migrations.
+
+For current storage/provider costs, credentials, video-service choices and the backup/recovery plan, see [storage options and setup](../docs/storage-options.md). Provider selection changes authoring only; this repository does not provision external R2/AWS accounts or silently migrate objects.

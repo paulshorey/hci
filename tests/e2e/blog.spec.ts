@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
+import { audioFixture } from '../fixtures/audio'
 
 test('journal, comparison slides, video, interactive modules, deep links and read-all work', async ({
   page,
@@ -65,10 +66,109 @@ test('public API, feed, sitemap, topic pages and admin are reachable', async ({
     '/posts/small-targets-bigger-decisions',
   )
   expect((await request.post('/api/posts', { data: { title: 'Forbidden' } })).status()).toBe(403)
+  expect((await request.get('/editor-guide', { maxRedirects: 0 })).status()).toBe(307)
   await page.goto('/topics/interface-studies')
   await expect(page.getByRole('heading', { name: 'Interface studies', exact: true })).toBeVisible()
   await page.goto('/admin')
   await expect(page.getByLabel('Email')).toBeVisible()
+})
+
+test('an editor uploads through Payload, follows the guide and publishes uploaded evidence with audio', async ({
+  page,
+}) => {
+  expect(
+    (
+      await page.request.post('/api/users/login', {
+        data: {
+          email: process.env.HCI_E2E_EDITOR_EMAIL,
+          password: process.env.HCI_E2E_EDITOR_PASSWORD,
+        },
+      })
+    ).status(),
+  ).toBe(200)
+  await page.goto('/admin/collections/media/create')
+  await page
+    .locator('input[type=file]')
+    .first()
+    .setInputFiles({
+      name: 'editor-notes.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from('observation,value\nkeyboard,true\n'),
+    })
+  await page.getByRole('textbox', { name: /^Title/ }).fill('Evidence entered in the editor')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await page.waitForURL(/\/admin\/collections\/media\/\d+/)
+  const id = Number(new URL(page.url()).pathname.split('/').at(-1))
+  expect(Number.isInteger(id)).toBe(true)
+  const mediaResponse = await page.request.get(`/api/media/${id}`, {
+    headers: { Origin: 'http://localhost:4500' },
+  })
+  expect(mediaResponse.status()).toBe(200)
+  const media = await mediaResponse.json()
+  expect(media.visibility).toBe('private')
+  await page.getByRole('button', { name: 'Open Menu', exact: true }).click()
+  await page.getByRole('link', { name: 'Editor guide', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Add and organize your evidence.' })).toBeVisible()
+  await page.getByRole('link', { name: 'import an interactive ZIP', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Import draft bundle' })).toBeVisible()
+  const headers = { Origin: 'http://localhost:4500' }
+  await page.request.patch(`/api/media/${id}`, { headers, data: { visibility: 'public' } })
+  const source = await page.request.post('/api/sources', {
+    headers,
+    data: { title: 'My uploaded evidence', attachments: [id], _status: 'published' },
+  })
+  expect(source.status()).toBe(201)
+  const sourceID = (await source.json()).doc.id
+  const audio = await page.request.post('/api/media', {
+    headers,
+    multipart: {
+      _payload: JSON.stringify({ title: 'Editor audio', visibility: 'public' }),
+      file: { name: 'editor-audio.wav', mimeType: 'audio/wav', buffer: audioFixture() },
+    },
+  })
+  expect(audio.status()).toBe(201)
+  const audioID = (await audio.json()).doc.id
+  const article = await page.request.post('/api/posts', {
+    headers,
+    data: {
+      title: 'Uploaded evidence article',
+      slug: 'uploaded-evidence-article',
+      summary: 'Entered manually',
+      sources: [sourceID],
+      _status: 'published',
+      slides: [
+        {
+          title: 'Listen to the evidence',
+          layout: 'stacked',
+          content: [
+            {
+              blockType: 'audio',
+              media: audioID,
+              caption: 'An illustrative audio fixture',
+              transcript: 'A short generated tone.',
+              source: sourceID,
+            },
+          ],
+        },
+        {
+          title: 'Original data',
+          layout: 'stacked',
+          content: [{ blockType: 'download', media: id, label: 'Download the dataset' }],
+        },
+      ],
+    },
+  })
+  expect(article.status()).toBe(201)
+  await page.goto('/posts/uploaded-evidence-article')
+  await expect(page.getByText('An illustrative audio fixture')).toBeVisible()
+  await page.locator('audio').evaluate(async (element) => {
+    await (element as HTMLAudioElement).play()
+  })
+  await page.getByRole('button', { name: 'Next slide' }).click()
+  await expect
+    .poll(() => page.locator('audio').evaluate((element) => (element as HTMLAudioElement).paused))
+    .toBe(true)
+  await expect(page.getByRole('link', { name: 'Evidence entered in the editor ↓' })).toBeVisible()
 })
 
 test('draft posts require authenticated previews and never appear in public APIs', async ({

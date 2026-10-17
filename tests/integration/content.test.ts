@@ -11,6 +11,7 @@ import sharp from 'sharp'
 import type { Payload } from 'payload'
 import type { Media, Source, Snippet, User } from '../../src/generated/payload-types'
 import type { Post } from '../../src/generated/payload-types'
+import { audioFixture } from '../fixtures/audio'
 
 let payload: Payload
 let client: Client
@@ -499,7 +500,12 @@ test('all published media placements prevent file replacement, withdrawal and de
     .png()
     .toBuffer()
   const movie = await readFile('samples/focus-demo.webm')
-  const cases: { name: string; video?: boolean; post: (id: number) => Partial<Post> }[] = [
+  const cases: {
+    name: string
+    video?: boolean
+    audio?: boolean
+    post: (id: number) => Partial<Post>
+  }[] = [
     {
       name: 'featured-image',
       post: (id) => ({ featuredImage: { media: id, alt: 'Fixture', caption: 'A cover' } }),
@@ -573,17 +579,29 @@ test('all published media placements prevent file replacement, withdrawal and de
         ],
       }),
     },
+    {
+      name: 'slide-audio',
+      audio: true,
+      post: (id) => ({
+        slides: [
+          {
+            layout: 'stacked',
+            content: [{ blockType: 'audio', media: id, caption: 'Recorded evidence' }],
+          },
+        ],
+      }),
+    },
   ]
   for (const example of cases) {
-    const bytes = example.video ? movie : png
+    const bytes = example.video ? movie : example.audio ? audioFixture() : png
     const file = await payload.create({
       collection: 'media',
       data: { title: example.name, visibility: 'public' },
       file: {
-        name: `${example.name}.${example.video ? 'webm' : 'png'}`,
+        name: `${example.name}.${example.video ? 'webm' : example.audio ? 'wav' : 'png'}`,
         data: bytes,
         size: bytes.length,
-        mimetype: example.video ? 'video/webm' : 'image/png',
+        mimetype: example.video ? 'video/webm' : example.audio ? 'audio/wav' : 'image/png',
       },
     })
     const post = await payload.create({
@@ -790,6 +808,166 @@ test('concurrent post publication and media withdrawal/replacement cannot both c
     const media = await payload.findByID({ collection: 'media', id: file.id })
     assert(!posts.totalDocs || (media.visibility === 'public' && media.mimeType === 'image/png'))
   }
+})
+
+test('editors can organize media folders without moving objects or exposing folder names', async () => {
+  const user = { ...editor, collection: 'users' as const }
+  const folder = await payload.create({
+    collection: 'payload-folders',
+    data: { name: 'Private research library', folderType: ['media'] },
+    user,
+    overrideAccess: false,
+  })
+  const original = await payload.findByID({ collection: 'media', id: publicFile.id })
+  await payload.update({
+    collection: 'media',
+    id: publicFile.id,
+    data: { folder: folder.id },
+    user,
+    overrideAccess: false,
+  })
+  const moved = await payload.findByID({ collection: 'media', id: publicFile.id })
+  assert.equal(moved.url, original.url)
+  assert.deepEqual(
+    await readFile(path.join(root, 'media', moved.filename!)),
+    await readFile(path.join(root, 'media', original.filename!)),
+  )
+  await assert.rejects(payload.find({ collection: 'payload-folders', overrideAccess: false }))
+  await assert.rejects(
+    payload.delete({ collection: 'payload-folders', id: folder.id, user, overrideAccess: false }),
+  )
+  await payload.delete({
+    collection: 'payload-folders',
+    id: folder.id,
+    user: { ...owner, collection: 'users' },
+    overrideAccess: false,
+  })
+  assert.equal((await payload.findByID({ collection: 'media', id: publicFile.id })).folder, null)
+})
+
+test('uploaded-only sources publish evidence attachments and protect the live version', async () => {
+  const file = await payload.create({
+    collection: 'media',
+    data: { title: 'Original dataset', visibility: 'private' },
+    file: {
+      name: 'dataset.csv',
+      data: Buffer.from('condition,seconds\na,1\nb,2\n'),
+      size: 26,
+      mimetype: 'text/csv',
+    },
+  })
+  await assert.rejects(
+    payload.create({
+      collection: 'sources',
+      data: {
+        title: 'Missing evidence',
+        accessedAt: new Date().toISOString(),
+        _status: 'published',
+      },
+    }),
+    /URL or an uploaded/,
+  )
+  await assert.rejects(
+    payload.create({
+      collection: 'sources',
+      data: {
+        title: 'Private evidence',
+        accessedAt: new Date().toISOString(),
+        attachments: [file.id],
+        _status: 'published',
+      },
+    }),
+    /attachments public/,
+  )
+  await payload.update({ collection: 'media', id: file.id, data: { visibility: 'public' } })
+  const source = await payload.create({
+    collection: 'sources',
+    data: {
+      title: 'My collected dataset',
+      accessedAt: new Date().toISOString(),
+      attachments: [file.id],
+      notes: 'Private reasoning',
+      _status: 'published',
+    },
+  })
+  const publicRead = await payload.findByID({
+    collection: 'sources',
+    id: source.id,
+    depth: 1,
+    overrideAccess: false,
+  })
+  assert.equal(publicRead.notes, undefined)
+  assert.equal((publicRead.attachments![0] as Media).id, file.id)
+  await payload.update({
+    collection: 'sources',
+    id: source.id,
+    draft: true,
+    data: { attachments: [], _status: 'draft' },
+  })
+  await assert.rejects(payload.delete({ collection: 'media', id: file.id }), /published source/)
+  await assert.rejects(
+    payload.update({ collection: 'media', id: file.id, data: { visibility: 'private' } }),
+    /published source/,
+  )
+  await payload.update({
+    collection: 'sources',
+    id: source.id,
+    draft: false,
+    data: { _status: 'draft' },
+  })
+  await payload.update({ collection: 'media', id: file.id, data: { visibility: 'private' } })
+})
+
+test('media library accepts audio, datasets and downloadable ZIPs while keeping executables isolated', async () => {
+  const cases = [
+    { name: 'note.md', mimetype: 'text/markdown', data: Buffer.from('# Notes\n') },
+    { name: 'data.json', mimetype: 'application/json', data: Buffer.from('{"observation":true}') },
+    {
+      name: 'archive.zip',
+      mimetype: 'application/zip',
+      data: await readFile('tests/fixtures/hello.zip'),
+    },
+    { name: 'voice.wav', mimetype: 'audio/wav', data: audioFixture() },
+  ]
+  for (const file of cases) {
+    const media = await payload.create({
+      collection: 'media',
+      data: { title: file.name, visibility: 'private' },
+      file: { ...file, size: file.data.length },
+    })
+    assert.equal(media.visibility, 'private')
+    assert.equal(media.mimeType, file.mimetype)
+  }
+  await assert.rejects(
+    payload.create({
+      collection: 'media',
+      data: { title: 'Unsafe inline HTML', visibility: 'private' },
+      file: {
+        name: 'index.html',
+        data: Buffer.from('<script>alert(1)</script>'),
+        size: 25,
+        mimetype: 'text/html',
+      },
+    }),
+  )
+  await assert.rejects(
+    payload.create({
+      collection: 'posts',
+      data: {
+        title: 'Bad audio',
+        slug: 'bad-audio',
+        summary: 'A mismatch',
+        _status: 'published',
+        slides: [
+          {
+            layout: 'stacked',
+            content: [{ blockType: 'audio', media: publicFile.id, caption: 'Audio caption' }],
+          },
+        ],
+      },
+    }),
+    /audio/,
+  )
 })
 
 test('migration runner is idempotent and refuses a modified applied checksum', async () => {

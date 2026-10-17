@@ -188,7 +188,7 @@ try {
         content: [
           {
             blockType: 'link',
-            url: source.url,
+            url: source.url!,
             label: 'Read the W3C target-size explanation',
             description: 'A primary reference for investigating target sizing in your own work.',
             source: source.id,

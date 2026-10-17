@@ -8,6 +8,8 @@ The model is `Post -> ordered slides -> ordered typed blocks`. Payload's array/b
 
 Slides are owned by a post so editing, draft history, and publishing are atomic at the article level. Media, source documents, and snippet versions are reusable references. Featured content is independent of slide content. A conventional article may have no slides.
 
+Editors can organize Media with Payload's native folders, including when selecting uploads from relationships. Folder names require authentication; moving a record does not move its storage object. Sources can refer to a web URL, uploaded evidence files, or both. Published sources require public attachments and protect them, including when a newer metadata draft removes the attachment. Audio blocks carry placement captions, optional transcripts and source relationships alongside other content types.
+
 Add a block by registering its Payload definition in `src/blocks/index.ts`, extending `ContentBlock` in `src/components/Content.tsx`, and adding publishing validation where needed. Then generate a forward migration and refresh contracts. The generated block union keeps the renderer typed. Keep data collection and rendering separate; a future gallery, timeline, or comparison viewer can read the same slide records.
 
 ## Published content and previews
@@ -29,6 +31,10 @@ User creation takes a transaction-scoped Postgres advisory lock before checking 
 ## Assets
 
 Standard uploads use Payload's disk support or official S3 storage plugin, retaining Payload file access control. Bundle import uses the small `ObjectStorage` interface. Disk and S3 adapters use the same object keys and manifest format. New providers can implement that interface without changing the post schema.
+
+The S3 plugin is installed with `alwaysInsertFields` in every environment, even when disabled for local disk storage. Its prefix/object-key columns are in committed migrations, avoiding storage-dependent production schema drift. Both entry points reject ephemeral production disk storage unless `ALLOW_PERSISTENT_DISK=true` explicitly opts into a configured persistent/local preview disk. Unknown drivers fail closed.
+
+Anonymous media delivery uses the official adapter's five-minute signed downloads after Payload authorizes the file. Editor requests remain proxied. A previously issued signed URL remains valid for its short lifetime; `S3_SIGNED_DOWNLOADS=false` restores proxy delivery when immediate revocation is required. Bundles keep their isolated manifest-checked proxy path. The S3 integration suite migrates in disk mode, then exercises actual Payload/S3 uploads, private access, signing, proxy reads, removal and request limits on the same database using an HTTP fixture.
 
 Every bundle gets a random immutable version/prefix. Its manifest records paths, MIME types, lengths, and SHA-256 hashes. A new bundle version is a new Snippet document. Draft/published metadata can change; files and manifests cannot. Files are staged before creating the database record, and failed imports attempt to remove only objects written by that operation. Interrupted imports can leave unreferenced objects; storage lifecycle cleanup should reconcile manifests before deleting anything.
 

@@ -29,6 +29,8 @@ try {
     ALLOW_PERSISTENT_DISK: 'true',
     HCI_E2E_EMAIL: 'browser@example.test',
     HCI_E2E_PASSWORD: randomBytes(24).toString('hex'),
+    HCI_E2E_EDITOR_EMAIL: 'editor@example.test',
+    HCI_E2E_EDITOR_PASSWORD: randomBytes(24).toString('hex'),
   }
   for (const command of [['db:migrate'], ['seed'], ['exec', 'tsx', 'scripts/create-e2e-user.ts']])
     execFileSync('pnpm', command, { env, stdio: 'inherit' })

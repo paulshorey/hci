@@ -20,6 +20,7 @@ import {
   text,
   jsonb,
   boolean,
+  type AnyPgColumn,
   pgEnum,
 } from '@payloadcms/db-postgres/drizzle/pg-core'
 import { sql, relations } from '@payloadcms/db-postgres/drizzle'
@@ -63,6 +64,9 @@ export const enum_snippets_status = pgEnum('enum_snippets_status', ['draft', 'pu
 export const enum__snippets_v_version_status = pgEnum('enum__snippets_v_version_status', [
   'draft',
   'published',
+])
+export const enum_payload_folders_folder_type = pgEnum('enum_payload_folders_folder_type', [
+  'media',
 ])
 
 export const users_sessions = pgTable(
@@ -211,6 +215,37 @@ export const posts_blocks_video = pgTable(
       columns: [columns['_parentID']],
       foreignColumns: [posts.id],
       name: 'posts_blocks_video_parent_id_fk',
+    }).onDelete('cascade'),
+  ],
+)
+
+export const posts_blocks_audio = pgTable(
+  'posts_blocks_audio',
+  {
+    _order: integer('_order').notNull(),
+    _parentID: integer('_parent_id').notNull(),
+    _path: text('_path').notNull(),
+    id: varchar('id').primaryKey(),
+    media: integer('media_id').references(() => media.id, {
+      onDelete: 'set null',
+    }),
+    transcript: varchar('transcript'),
+    caption: varchar('caption'),
+    source: integer('source_id').references(() => sources.id, {
+      onDelete: 'set null',
+    }),
+    blockName: varchar('block_name'),
+  },
+  (columns) => [
+    index('posts_blocks_audio_order_idx').on(columns._order),
+    index('posts_blocks_audio_parent_id_idx').on(columns._parentID),
+    index('posts_blocks_audio_path_idx').on(columns._path),
+    index('posts_blocks_audio_media_idx').on(columns.media),
+    index('posts_blocks_audio_source_idx').on(columns.source),
+    foreignKey({
+      columns: [columns['_parentID']],
+      foreignColumns: [posts.id],
+      name: 'posts_blocks_audio_parent_id_fk',
     }).onDelete('cascade'),
   ],
 )
@@ -524,6 +559,38 @@ export const _posts_v_blocks_video = pgTable(
   ],
 )
 
+export const _posts_v_blocks_audio = pgTable(
+  '_posts_v_blocks_audio',
+  {
+    _order: integer('_order').notNull(),
+    _parentID: integer('_parent_id').notNull(),
+    _path: text('_path').notNull(),
+    id: serial('id').primaryKey(),
+    media: integer('media_id').references(() => media.id, {
+      onDelete: 'set null',
+    }),
+    transcript: varchar('transcript'),
+    caption: varchar('caption'),
+    source: integer('source_id').references(() => sources.id, {
+      onDelete: 'set null',
+    }),
+    _uuid: varchar('_uuid'),
+    blockName: varchar('block_name'),
+  },
+  (columns) => [
+    index('_posts_v_blocks_audio_order_idx').on(columns._order),
+    index('_posts_v_blocks_audio_parent_id_idx').on(columns._parentID),
+    index('_posts_v_blocks_audio_path_idx').on(columns._path),
+    index('_posts_v_blocks_audio_media_idx').on(columns.media),
+    index('_posts_v_blocks_audio_source_idx').on(columns.source),
+    foreignKey({
+      columns: [columns['_parentID']],
+      foreignColumns: [_posts_v.id],
+      name: '_posts_v_blocks_audio_parent_id_fk',
+    }).onDelete('cascade'),
+  ],
+)
+
 export const _posts_v_blocks_link = pgTable(
   '_posts_v_blocks_link',
   {
@@ -811,6 +878,11 @@ export const media = pgTable(
     }),
     creditURL: varchar('credit_u_r_l'),
     license: varchar('license'),
+    prefix: varchar('prefix').default('media'),
+    _objectKey: varchar('_objectkey'),
+    folder: integer('folder_id').references(() => payload_folders.id, {
+      onDelete: 'set null',
+    }),
     updatedAt: timestamp('updated_at', { mode: 'string', withTimezone: true, precision: 3 })
       .defaultNow()
       .notNull(),
@@ -835,6 +907,7 @@ export const media = pgTable(
   },
   (columns) => [
     index('media_source_idx').on(columns.source),
+    index('media_folder_idx').on(columns.folder),
     index('media_updated_at_idx').on(columns.updatedAt),
     index('media_created_at_idx').on(columns.createdAt),
     uniqueIndex('media_filename_idx').on(columns.filename),
@@ -866,6 +939,33 @@ export const sources = pgTable(
     index('sources_updated_at_idx').on(columns.updatedAt),
     index('sources_created_at_idx').on(columns.createdAt),
     index('sources__status_idx').on(columns._status),
+  ],
+)
+
+export const sources_rels = pgTable(
+  'sources_rels',
+  {
+    id: serial('id').primaryKey(),
+    order: integer('order'),
+    parent: integer('parent_id').notNull(),
+    path: varchar('path').notNull(),
+    mediaID: integer('media_id'),
+  },
+  (columns) => [
+    index('sources_rels_order_idx').on(columns.order),
+    index('sources_rels_parent_idx').on(columns.parent),
+    index('sources_rels_path_idx').on(columns.path),
+    index('sources_rels_media_id_idx').on(columns.mediaID),
+    foreignKey({
+      columns: [columns['parent']],
+      foreignColumns: [sources.id],
+      name: 'sources_rels_parent_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [columns['mediaID']],
+      foreignColumns: [media.id],
+      name: 'sources_rels_media_fk',
+    }).onDelete('cascade'),
   ],
 )
 
@@ -919,6 +1019,33 @@ export const _sources_v = pgTable(
     index('_sources_v_created_at_idx').on(columns.createdAt),
     index('_sources_v_updated_at_idx').on(columns.updatedAt),
     index('_sources_v_latest_idx').on(columns.latest),
+  ],
+)
+
+export const _sources_v_rels = pgTable(
+  '_sources_v_rels',
+  {
+    id: serial('id').primaryKey(),
+    order: integer('order'),
+    parent: integer('parent_id').notNull(),
+    path: varchar('path').notNull(),
+    mediaID: integer('media_id'),
+  },
+  (columns) => [
+    index('_sources_v_rels_order_idx').on(columns.order),
+    index('_sources_v_rels_parent_idx').on(columns.parent),
+    index('_sources_v_rels_path_idx').on(columns.path),
+    index('_sources_v_rels_media_id_idx').on(columns.mediaID),
+    foreignKey({
+      columns: [columns['parent']],
+      foreignColumns: [_sources_v.id],
+      name: '_sources_v_rels_parent_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [columns['mediaID']],
+      foreignColumns: [media.id],
+      name: '_sources_v_rels_media_fk',
+    }).onDelete('cascade'),
   ],
 )
 
@@ -1023,6 +1150,48 @@ export const payload_kv = pgTable(
   (columns) => [uniqueIndex('payload_kv_key_idx').on(columns.key)],
 )
 
+export const payload_folders_folder_type = pgTable(
+  'payload_folders_folder_type',
+  {
+    order: integer('order').notNull(),
+    parent: integer('parent_id').notNull(),
+    value: enum_payload_folders_folder_type('value'),
+    id: serial('id').primaryKey(),
+  },
+  (columns) => [
+    index('payload_folders_folder_type_order_idx').on(columns.order),
+    index('payload_folders_folder_type_parent_idx').on(columns.parent),
+    foreignKey({
+      columns: [columns['parent']],
+      foreignColumns: [payload_folders.id],
+      name: 'payload_folders_folder_type_parent_fk',
+    }).onDelete('cascade'),
+  ],
+)
+
+export const payload_folders = pgTable(
+  'payload_folders',
+  {
+    id: serial('id').primaryKey(),
+    name: varchar('name').notNull(),
+    folder: integer('folder_id').references((): AnyPgColumn => payload_folders.id, {
+      onDelete: 'set null',
+    }),
+    updatedAt: timestamp('updated_at', { mode: 'string', withTimezone: true, precision: 3 })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp('created_at', { mode: 'string', withTimezone: true, precision: 3 })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => [
+    index('payload_folders_name_idx').on(columns.name),
+    index('payload_folders_folder_idx').on(columns.folder),
+    index('payload_folders_updated_at_idx').on(columns.updatedAt),
+    index('payload_folders_created_at_idx').on(columns.createdAt),
+  ],
+)
+
 export const payload_locked_documents = pgTable(
   'payload_locked_documents',
   {
@@ -1055,6 +1224,7 @@ export const payload_locked_documents_rels = pgTable(
     sourcesID: integer('sources_id'),
     topicsID: integer('topics_id'),
     snippetsID: integer('snippets_id'),
+    'payload-foldersID': integer('payload_folders_id'),
   },
   (columns) => [
     index('payload_locked_documents_rels_order_idx').on(columns.order),
@@ -1066,6 +1236,7 @@ export const payload_locked_documents_rels = pgTable(
     index('payload_locked_documents_rels_sources_id_idx').on(columns.sourcesID),
     index('payload_locked_documents_rels_topics_id_idx').on(columns.topicsID),
     index('payload_locked_documents_rels_snippets_id_idx').on(columns.snippetsID),
+    index('payload_locked_documents_rels_payload_folders_id_idx').on(columns['payload-foldersID']),
     foreignKey({
       columns: [columns['parent']],
       foreignColumns: [payload_locked_documents.id],
@@ -1100,6 +1271,11 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns['snippetsID']],
       foreignColumns: [snippets.id],
       name: 'payload_locked_documents_rels_snippets_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [columns['payload-foldersID']],
+      foreignColumns: [payload_folders.id],
+      name: 'payload_locked_documents_rels_payload_folders_fk',
     }).onDelete('cascade'),
   ],
 )
@@ -1266,6 +1442,23 @@ export const relations_posts_blocks_video = relations(posts_blocks_video, ({ one
     relationName: 'source',
   }),
 }))
+export const relations_posts_blocks_audio = relations(posts_blocks_audio, ({ one }) => ({
+  _parentID: one(posts, {
+    fields: [posts_blocks_audio._parentID],
+    references: [posts.id],
+    relationName: '_blocks_audio',
+  }),
+  media: one(media, {
+    fields: [posts_blocks_audio.media],
+    references: [media.id],
+    relationName: 'media',
+  }),
+  source: one(sources, {
+    fields: [posts_blocks_audio.source],
+    references: [sources.id],
+    relationName: 'source',
+  }),
+}))
 export const relations_posts_blocks_link = relations(posts_blocks_link, ({ one }) => ({
   _parentID: one(posts, {
     fields: [posts_blocks_link._parentID],
@@ -1386,6 +1579,9 @@ export const relations_posts = relations(posts, ({ one, many }) => ({
   _blocks_video: many(posts_blocks_video, {
     relationName: '_blocks_video',
   }),
+  _blocks_audio: many(posts_blocks_audio, {
+    relationName: '_blocks_audio',
+  }),
   _blocks_link: many(posts_blocks_link, {
     relationName: '_blocks_link',
   }),
@@ -1447,6 +1643,23 @@ export const relations__posts_v_blocks_video = relations(_posts_v_blocks_video, 
   }),
   source: one(sources, {
     fields: [_posts_v_blocks_video.source],
+    references: [sources.id],
+    relationName: 'source',
+  }),
+}))
+export const relations__posts_v_blocks_audio = relations(_posts_v_blocks_audio, ({ one }) => ({
+  _parentID: one(_posts_v, {
+    fields: [_posts_v_blocks_audio._parentID],
+    references: [_posts_v.id],
+    relationName: '_blocks_audio',
+  }),
+  media: one(media, {
+    fields: [_posts_v_blocks_audio.media],
+    references: [media.id],
+    relationName: 'media',
+  }),
+  source: one(sources, {
+    fields: [_posts_v_blocks_audio.source],
     references: [sources.id],
     relationName: 'source',
   }),
@@ -1579,6 +1792,9 @@ export const relations__posts_v = relations(_posts_v, ({ one, many }) => ({
   _blocks_video: many(_posts_v_blocks_video, {
     relationName: '_blocks_video',
   }),
+  _blocks_audio: many(_posts_v_blocks_audio, {
+    relationName: '_blocks_audio',
+  }),
   _blocks_link: many(_posts_v_blocks_link, {
     relationName: '_blocks_link',
   }),
@@ -1601,13 +1817,49 @@ export const relations_media = relations(media, ({ one }) => ({
     references: [sources.id],
     relationName: 'source',
   }),
+  folder: one(payload_folders, {
+    fields: [media.folder],
+    references: [payload_folders.id],
+    relationName: 'folder',
+  }),
 }))
-export const relations_sources = relations(sources, () => ({}))
-export const relations__sources_v = relations(_sources_v, ({ one }) => ({
+export const relations_sources_rels = relations(sources_rels, ({ one }) => ({
+  parent: one(sources, {
+    fields: [sources_rels.parent],
+    references: [sources.id],
+    relationName: '_rels',
+  }),
+  mediaID: one(media, {
+    fields: [sources_rels.mediaID],
+    references: [media.id],
+    relationName: 'media',
+  }),
+}))
+export const relations_sources = relations(sources, ({ many }) => ({
+  _rels: many(sources_rels, {
+    relationName: '_rels',
+  }),
+}))
+export const relations__sources_v_rels = relations(_sources_v_rels, ({ one }) => ({
+  parent: one(_sources_v, {
+    fields: [_sources_v_rels.parent],
+    references: [_sources_v.id],
+    relationName: '_rels',
+  }),
+  mediaID: one(media, {
+    fields: [_sources_v_rels.mediaID],
+    references: [media.id],
+    relationName: 'media',
+  }),
+}))
+export const relations__sources_v = relations(_sources_v, ({ one, many }) => ({
   parent: one(sources, {
     fields: [_sources_v.parent],
     references: [sources.id],
     relationName: 'parent',
+  }),
+  _rels: many(_sources_v_rels, {
+    relationName: '_rels',
   }),
 }))
 export const relations_topics = relations(topics, () => ({}))
@@ -1620,6 +1872,26 @@ export const relations__snippets_v = relations(_snippets_v, ({ one }) => ({
   }),
 }))
 export const relations_payload_kv = relations(payload_kv, () => ({}))
+export const relations_payload_folders_folder_type = relations(
+  payload_folders_folder_type,
+  ({ one }) => ({
+    parent: one(payload_folders, {
+      fields: [payload_folders_folder_type.parent],
+      references: [payload_folders.id],
+      relationName: 'folderType',
+    }),
+  }),
+)
+export const relations_payload_folders = relations(payload_folders, ({ one, many }) => ({
+  folder: one(payload_folders, {
+    fields: [payload_folders.folder],
+    references: [payload_folders.id],
+    relationName: 'folder',
+  }),
+  folderType: many(payload_folders_folder_type, {
+    relationName: 'folderType',
+  }),
+}))
 export const relations_payload_locked_documents_rels = relations(
   payload_locked_documents_rels,
   ({ one }) => ({
@@ -1657,6 +1929,11 @@ export const relations_payload_locked_documents_rels = relations(
       fields: [payload_locked_documents_rels.snippetsID],
       references: [snippets.id],
       relationName: 'snippets',
+    }),
+    'payload-foldersID': one(payload_folders, {
+      fields: [payload_locked_documents_rels['payload-foldersID']],
+      references: [payload_folders.id],
+      relationName: 'payload-folders',
     }),
   }),
 )
@@ -1725,11 +2002,13 @@ type DatabaseSchema = {
   enum__sources_v_version_status: typeof enum__sources_v_version_status
   enum_snippets_status: typeof enum_snippets_status
   enum__snippets_v_version_status: typeof enum__snippets_v_version_status
+  enum_payload_folders_folder_type: typeof enum_payload_folders_folder_type
   users_sessions: typeof users_sessions
   users: typeof users
   posts_blocks_rich_text: typeof posts_blocks_rich_text
   posts_blocks_image: typeof posts_blocks_image
   posts_blocks_video: typeof posts_blocks_video
+  posts_blocks_audio: typeof posts_blocks_audio
   posts_blocks_link: typeof posts_blocks_link
   posts_blocks_download: typeof posts_blocks_download
   posts_blocks_embed: typeof posts_blocks_embed
@@ -1739,6 +2018,7 @@ type DatabaseSchema = {
   _posts_v_blocks_rich_text: typeof _posts_v_blocks_rich_text
   _posts_v_blocks_image: typeof _posts_v_blocks_image
   _posts_v_blocks_video: typeof _posts_v_blocks_video
+  _posts_v_blocks_audio: typeof _posts_v_blocks_audio
   _posts_v_blocks_link: typeof _posts_v_blocks_link
   _posts_v_blocks_download: typeof _posts_v_blocks_download
   _posts_v_blocks_embed: typeof _posts_v_blocks_embed
@@ -1747,11 +2027,15 @@ type DatabaseSchema = {
   _posts_v_rels: typeof _posts_v_rels
   media: typeof media
   sources: typeof sources
+  sources_rels: typeof sources_rels
   _sources_v: typeof _sources_v
+  _sources_v_rels: typeof _sources_v_rels
   topics: typeof topics
   snippets: typeof snippets
   _snippets_v: typeof _snippets_v
   payload_kv: typeof payload_kv
+  payload_folders_folder_type: typeof payload_folders_folder_type
+  payload_folders: typeof payload_folders
   payload_locked_documents: typeof payload_locked_documents
   payload_locked_documents_rels: typeof payload_locked_documents_rels
   payload_preferences: typeof payload_preferences
@@ -1764,6 +2048,7 @@ type DatabaseSchema = {
   relations_posts_blocks_rich_text: typeof relations_posts_blocks_rich_text
   relations_posts_blocks_image: typeof relations_posts_blocks_image
   relations_posts_blocks_video: typeof relations_posts_blocks_video
+  relations_posts_blocks_audio: typeof relations_posts_blocks_audio
   relations_posts_blocks_link: typeof relations_posts_blocks_link
   relations_posts_blocks_download: typeof relations_posts_blocks_download
   relations_posts_blocks_embed: typeof relations_posts_blocks_embed
@@ -1773,6 +2058,7 @@ type DatabaseSchema = {
   relations__posts_v_blocks_rich_text: typeof relations__posts_v_blocks_rich_text
   relations__posts_v_blocks_image: typeof relations__posts_v_blocks_image
   relations__posts_v_blocks_video: typeof relations__posts_v_blocks_video
+  relations__posts_v_blocks_audio: typeof relations__posts_v_blocks_audio
   relations__posts_v_blocks_link: typeof relations__posts_v_blocks_link
   relations__posts_v_blocks_download: typeof relations__posts_v_blocks_download
   relations__posts_v_blocks_embed: typeof relations__posts_v_blocks_embed
@@ -1780,12 +2066,16 @@ type DatabaseSchema = {
   relations__posts_v_rels: typeof relations__posts_v_rels
   relations__posts_v: typeof relations__posts_v
   relations_media: typeof relations_media
+  relations_sources_rels: typeof relations_sources_rels
   relations_sources: typeof relations_sources
+  relations__sources_v_rels: typeof relations__sources_v_rels
   relations__sources_v: typeof relations__sources_v
   relations_topics: typeof relations_topics
   relations_snippets: typeof relations_snippets
   relations__snippets_v: typeof relations__snippets_v
   relations_payload_kv: typeof relations_payload_kv
+  relations_payload_folders_folder_type: typeof relations_payload_folders_folder_type
+  relations_payload_folders: typeof relations_payload_folders
   relations_payload_locked_documents_rels: typeof relations_payload_locked_documents_rels
   relations_payload_locked_documents: typeof relations_payload_locked_documents
   relations_payload_preferences_rels: typeof relations_payload_preferences_rels

@@ -65,8 +65,11 @@ export const videoFields = (): Field[] => [
     name: 'media',
     type: 'upload',
     relationTo: 'media',
-    filterOptions: { mimeType: { like: 'video/' } },
-    admin: { condition: (_, sibling) => sibling.sourceType !== 'external' },
+    filterOptions: { mimeType: { in: ['video/mp4', 'video/webm'] } },
+    admin: {
+      description: 'Use browser-ready MP4 or WebM. Other originals can be attached as downloads.',
+      condition: (_, sibling) => sibling.sourceType !== 'external',
+    },
   },
   {
     name: 'url',

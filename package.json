@@ -21,6 +21,7 @@
     "setup:local": "tsx scripts/setup-local.ts",
     "seed": "tsx scripts/seed.ts",
     "snippets:import": "tsx scripts/import-snippet.ts",
+    "storage:check": "tsx scripts/check-storage.ts",
     "embeds:dev": "tsx watch services/embeds/server.ts",
     "embeds:start": "tsx services/embeds/server.ts",
     "check-types": "tsc --noEmit",

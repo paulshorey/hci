@@ -6,7 +6,7 @@ import {
 } from '@aws-sdk/client-s3'
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { required, storageRoot } from '@/lib/env'
+import { assertDurableStorage, required, storageDriver, storageRoot } from '@/lib/env'
 
 export interface ObjectStorage {
   write(key: string, bytes: Buffer, contentType: string): Promise<void>
@@ -91,12 +91,10 @@ export class S3Storage implements ObjectStorage {
 }
 
 export function objectStorage(): ObjectStorage {
-  const driver = process.env.STORAGE_DRIVER || 'disk'
+  const driver = storageDriver()
+  assertDurableStorage()
   if (driver === 'disk') {
-    if (process.env.NODE_ENV === 'production' && !process.env.ALLOW_PERSISTENT_DISK)
-      throw new Error('Use S3 storage in production, or explicitly configure a persistent disk.')
     return new DiskStorage(storageRoot())
   }
-  if (driver === 's3') return new S3Storage(new S3Client(s3Config()), required('S3_BUCKET'))
-  throw new Error(`Unknown STORAGE_DRIVER: ${driver}`)
+  return new S3Storage(new S3Client(s3Config()), required('S3_BUCKET'))
 }

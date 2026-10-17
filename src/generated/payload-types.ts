@@ -14,7 +14,7 @@ export type Slide =
   | {
       title?: string | null;
       layout: 'stacked' | 'comparison';
-      content: (TextBlock | ImageBlock | VideoBlock | LinkBlock | DownloadBlock | EmbedBlock)[];
+      content: (TextBlock | ImageBlock | VideoBlock | AudioBlock | LinkBlock | DownloadBlock | EmbedBlock)[];
       id?: string | null;
     }[]
   | null;
@@ -86,11 +86,16 @@ export interface Config {
     topics: Topic;
     snippets: Snippet;
     'payload-kv': PayloadKv;
+    'payload-folders': FolderInterface;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
   };
-  collectionsJoins: {};
+  collectionsJoins: {
+    'payload-folders': {
+      documentsAndFolders: 'payload-folders' | 'media';
+    };
+  };
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     posts: PostsSelect<false> | PostsSelect<true>;
@@ -99,6 +104,7 @@ export interface Config {
     topics: TopicsSelect<false> | TopicsSelect<true>;
     snippets: SnippetsSelect<false> | SnippetsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
+    'payload-folders': PayloadFoldersSelect<false> | PayloadFoldersSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -215,6 +221,9 @@ export interface Post {
   };
   featuredVideo?: {
     sourceType?: ('upload' | 'external') | null;
+    /**
+     * Use browser-ready MP4 or WebM. Other originals can be attached as downloads.
+     */
     media?: (number | null) | Media;
     /**
      * HTTPS MP4/WebM, YouTube, or Vimeo URL.
@@ -254,13 +263,19 @@ export interface Topic {
   createdAt: string;
 }
 /**
+ * Record a web source, your own uploaded evidence, or both. Research notes stay private.
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "sources".
  */
 export interface Source {
   id: number;
   title: string;
-  url: string;
+  url?: string | null;
+  /**
+   * Public evidence files, such as screenshots, recordings, original PDFs, datasets or ZIPs. A published source needs a URL or at least one public attachment.
+   */
+  attachments?: (number | Media)[] | null;
   publisher?: string | null;
   author?: string | null;
   publishedAt?: string | null;
@@ -275,6 +290,8 @@ export interface Source {
   _status?: ('draft' | 'published') | null;
 }
 /**
+ * Upload photos, video, audio, PDFs, documents, datasets or downloadable ZIP archives. Organize files into folders. For runnable HTML/CSS/JS folders, use Import an interactive ZIP in the navigation.
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "media".
  */
@@ -293,6 +310,9 @@ export interface Media {
    * Rights or license information for this file.
    */
   license?: string | null;
+  prefix?: string | null;
+  _objectKey?: string | null;
+  folder?: (number | null) | FolderInterface;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -314,6 +334,32 @@ export interface Media {
       filename?: string | null;
     };
   };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-folders".
+ */
+export interface FolderInterface {
+  id: number;
+  name: string;
+  folder?: (number | null) | FolderInterface;
+  documentsAndFolders?: {
+    docs?: (
+      | {
+          relationTo?: 'payload-folders';
+          value: number | FolderInterface;
+        }
+      | {
+          relationTo?: 'media';
+          value: number | Media;
+        }
+    )[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  folderType?: 'media'[] | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * Import a ZIP at /bundles/import, or use pnpm snippets:import. Files are immutable; import an update as a new version.
@@ -390,6 +436,9 @@ export interface ImageBlock {
  */
 export interface VideoBlock {
   sourceType: 'upload' | 'external';
+  /**
+   * Use browser-ready MP4 or WebM. Other originals can be attached as downloads.
+   */
   media?: (number | null) | Media;
   /**
    * HTTPS MP4/WebM, YouTube, or Vimeo URL.
@@ -405,6 +454,22 @@ export interface VideoBlock {
   id?: string | null;
   blockName?: string | null;
   blockType: 'video';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "AudioBlock".
+ */
+export interface AudioBlock {
+  media: number | Media;
+  transcript?: string | null;
+  /**
+   * Shown immediately below this media. Required when publishing.
+   */
+  caption?: string | null;
+  source?: (number | null) | Source;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'audio';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -496,6 +561,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'snippets';
         value: number | Snippet;
+      } | null)
+    | ({
+        relationTo: 'payload-folders';
+        value: number | FolderInterface;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -625,6 +694,7 @@ export interface SlideSelect<T extends boolean = true> {
         richText?: T | TextBlockSelect<T>;
         image?: T | ImageBlockSelect<T>;
         video?: T | VideoBlockSelect<T>;
+        audio?: T | AudioBlockSelect<T>;
         link?: T | LinkBlockSelect<T>;
         download?: T | DownloadBlockSelect<T>;
         embed?: T | EmbedBlockSelect<T>;
@@ -661,6 +731,18 @@ export interface VideoBlockSelect<T extends boolean = true> {
   media?: T;
   url?: T;
   poster?: T;
+  transcript?: T;
+  caption?: T;
+  source?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "AudioBlock_select".
+ */
+export interface AudioBlockSelect<T extends boolean = true> {
+  media?: T;
   transcript?: T;
   caption?: T;
   source?: T;
@@ -716,6 +798,9 @@ export interface MediaSelect<T extends boolean = true> {
   source?: T;
   creditURL?: T;
   license?: T;
+  prefix?: T;
+  _objectKey?: T;
+  folder?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -749,6 +834,7 @@ export interface MediaSelect<T extends boolean = true> {
 export interface SourcesSelect<T extends boolean = true> {
   title?: T;
   url?: T;
+  attachments?: T;
   publisher?: T;
   author?: T;
   publishedAt?: T;
@@ -792,6 +878,18 @@ export interface SnippetsSelect<T extends boolean = true> {
 export interface PayloadKvSelect<T extends boolean = true> {
   key?: T;
   data?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-folders_select".
+ */
+export interface PayloadFoldersSelect<T extends boolean = true> {
+  name?: T;
+  folder?: T;
+  documentsAndFolders?: T;
+  folderType?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

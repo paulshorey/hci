@@ -2,9 +2,9 @@
 
 ## Supported storage
 
-Development defaults to ignored `storage/`. Railway application containers are ephemeral, so production configuration selects `STORAGE_DRIVER=s3`. Supply bucket, region, optional endpoint, access key, and secret through environment variables. AWS S3 and Railway Buckets use the same interface. Configure path style explicitly if the chosen S3 endpoint requires it.
+Development defaults to ignored `storage/`. Railway application containers are ephemeral, so production configuration selects `STORAGE_DRIVER=s3`. Supply bucket, region, optional endpoint, access key, and secret through environment variables. AWS S3, Railway Buckets and Cloudflare R2 use the same interface. Configure path style explicitly if the chosen S3 endpoint requires it; R2 uses `S3_REGION=auto` and `S3_FORCE_PATH_STYLE=true`. See [provider selection and setup](storage-options.md).
 
-The Payload S3 plugin handles normal media and retains its authenticated delivery routes. Bundles use the S3 adapter in `src/lib/storage`. Do not make private storage public to bypass access checks. Railway Buckets are private and do not directly host websites; the embed service serves their bundle objects under a stable relative URL structure.
+The Payload S3 plugin handles normal media and retains its authorized delivery routes. Public requests redirect to five-minute signed bucket URLs by default; editor previews remain proxied. Set `S3_SIGNED_DOWNLOADS=false` to proxy everything. Bundles use the S3 adapter in `src/lib/storage`. Keep the bucket private. Railway Buckets do not directly host websites; the embed service serves bundle objects under a stable relative URL structure.
 
 S3 adapters are tested with signed AWS SDK requests to a local HTTP fixture. Live credentials, network behavior, IAM policies, and provider-specific range/CORS behavior must be verified against the selected deployment before release.
 
@@ -15,7 +15,7 @@ S3 adapters are tested with signed AWS SDK requests to a local HTTP fixture. Liv
 - Paths: relative ASCII paths up to 240 characters, without hidden components, symlinks, traversal, ambiguous separators, or case collisions.
 - Entry: an existing `.html` file.
 - Types: HTML, CSS, JS/MJS, JSON, PNG/JPEG/WebP/AVIF/GIF/SVG, WOFF/WOFF2, MP4/WebM, and plain text.
-- Ordinary Payload uploads: 100 MiB; executable HTML/JS/SVG uploads are excluded from the main-origin Media collection.
+- Ordinary Payload uploads: 100 MiB by default, configurable with `MEDIA_MAX_UPLOAD_MB` from 1–500. Whole-request limits match the per-file limit plus multipart overhead; oversized uploads reject rather than truncate. Photos, MP4/WebM, MOV originals, MP3/M4A/AAC/OGG/WAV/FLAC audio, PDFs, text, Markdown, CSV, JSON, DOCX/XLSX/PPTX and ZIPs are accepted. Browser codec support varies. Convert MOV originals for playback; they remain valid download evidence. Executable HTML/JS/SVG uploads belong in interactive bundles.
 
 Create a ZIP with the entry file at the root, or set the entry path explicitly. For example, from inside a bundle folder:
 
