@@ -8,6 +8,8 @@ Posts own ordered slides; each slide owns ordered, typed content blocks. Images,
 
 Requirements: Node 24, pnpm 10.28.1, and PostgreSQL 17 (Docker Compose is provided).
 
+When upgrading an existing checkout, rename the `DATABASE_URL` key in your ignored `.env` to `DB_HCI_URL`, keeping its existing connection string, before running the commands below. `setup:local` preserves existing `.env` files and does not rename old settings automatically. If `DB_HCI_URL` already exists, keep its intended HCI connection and remove the obsolete project-local `DATABASE_URL` entry.
+
 ```sh
 pnpm install --frozen-lockfile
 pnpm setup:local
