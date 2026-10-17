@@ -230,6 +230,8 @@ export interface Post {
   };
   featuredLink?: string | null;
   featuredSnippet?: (number | null) | Snippet;
+  featuredSnippetCaption?: string | null;
+  featuredSnippetSource?: (number | null) | Source;
   slides?: Slide;
   seo?: {
     title?: string | null;
@@ -597,6 +599,8 @@ export interface PostsSelect<T extends boolean = true> {
       };
   featuredLink?: T;
   featuredSnippet?: T;
+  featuredSnippetCaption?: T;
+  featuredSnippetSource?: T;
   slides?: T | SlideSelect<T>;
   seo?:
     | T

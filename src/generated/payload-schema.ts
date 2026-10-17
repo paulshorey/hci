@@ -366,6 +366,10 @@ export const posts = pgTable(
     featuredSnippet: integer('featured_snippet_id').references(() => snippets.id, {
       onDelete: 'set null',
     }),
+    featuredSnippetCaption: varchar('featured_snippet_caption'),
+    featuredSnippetSource: integer('featured_snippet_source_id').references(() => sources.id, {
+      onDelete: 'set null',
+    }),
     seo_title: varchar('seo_title'),
     seo_description: varchar('seo_description'),
     updatedAt: timestamp('updated_at', { mode: 'string', withTimezone: true, precision: 3 })
@@ -386,6 +390,7 @@ export const posts = pgTable(
     index('posts_featured_video_featured_video_poster_idx').on(columns.featuredVideo_poster),
     index('posts_featured_video_featured_video_source_idx').on(columns.featuredVideo_source),
     index('posts_featured_snippet_idx').on(columns.featuredSnippet),
+    index('posts_featured_snippet_source_idx').on(columns.featuredSnippetSource),
     index('posts_updated_at_idx').on(columns.updatedAt),
     index('posts_created_at_idx').on(columns.createdAt),
     index('posts__status_idx').on(columns._status),
@@ -696,6 +701,13 @@ export const _posts_v = pgTable(
     version_featuredSnippet: integer('version_featured_snippet_id').references(() => snippets.id, {
       onDelete: 'set null',
     }),
+    version_featuredSnippetCaption: varchar('version_featured_snippet_caption'),
+    version_featuredSnippetSource: integer('version_featured_snippet_source_id').references(
+      () => sources.id,
+      {
+        onDelete: 'set null',
+      },
+    ),
     version_seo_title: varchar('version_seo_title'),
     version_seo_description: varchar('version_seo_description'),
     version_updatedAt: timestamp('version_updated_at', {
@@ -739,6 +751,9 @@ export const _posts_v = pgTable(
       columns.version_featuredVideo_source,
     ),
     index('_posts_v_version_version_featured_snippet_idx').on(columns.version_featuredSnippet),
+    index('_posts_v_version_version_featured_snippet_source_idx').on(
+      columns.version_featuredSnippetSource,
+    ),
     index('_posts_v_version_version_updated_at_idx').on(columns.version_updatedAt),
     index('_posts_v_version_version_created_at_idx').on(columns.version_createdAt),
     index('_posts_v_version_version__status_idx').on(columns.version__status),
@@ -1357,6 +1372,11 @@ export const relations_posts = relations(posts, ({ one, many }) => ({
     references: [snippets.id],
     relationName: 'featuredSnippet',
   }),
+  featuredSnippetSource: one(sources, {
+    fields: [posts.featuredSnippetSource],
+    references: [sources.id],
+    relationName: 'featuredSnippetSource',
+  }),
   _blocks_richText: many(posts_blocks_rich_text, {
     relationName: '_blocks_richText',
   }),
@@ -1544,6 +1564,11 @@ export const relations__posts_v = relations(_posts_v, ({ one, many }) => ({
     fields: [_posts_v.version_featuredSnippet],
     references: [snippets.id],
     relationName: 'version_featuredSnippet',
+  }),
+  version_featuredSnippetSource: one(sources, {
+    fields: [_posts_v.version_featuredSnippetSource],
+    references: [sources.id],
+    relationName: 'version_featuredSnippetSource',
   }),
   _blocks_richText: many(_posts_v_blocks_rich_text, {
     relationName: '_blocks_richText',

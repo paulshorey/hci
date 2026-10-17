@@ -126,6 +126,20 @@ test('CMS ZIP import, authenticated bundle previews, publishing and private medi
   })
   expect(published.status()).toBe(200)
   expect((await request.get(`http://localhost:4501/bundles/${id}/index.html`)).status()).toBe(200)
+  const featured = await page.request.post('/api/posts', {
+    headers: { Origin: 'http://localhost:4500' },
+    data: {
+      title: 'Featured interaction',
+      slug: 'featured-interaction',
+      summary: 'An embed with context',
+      featuredSnippet: Number(id),
+      featuredSnippetCaption: 'A caption underneath the featured experiment.',
+      _status: 'published',
+    },
+  })
+  expect(featured.status()).toBe(201)
+  await page.goto('/posts/featured-interaction')
+  await expect(page.getByText('A caption underneath the featured experiment.')).toBeVisible()
   const uploaded = await page.request.post('/api/media', {
     headers: { Origin: 'http://localhost:4500' },
     multipart: {

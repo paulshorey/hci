@@ -101,6 +101,8 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
           <SnippetContent
             value={post.featuredSnippet}
             title={`${post.title}: interactive`}
+            caption={post.featuredSnippetCaption}
+            source={post.featuredSnippetSource}
             preview={preview}
           />
         )}

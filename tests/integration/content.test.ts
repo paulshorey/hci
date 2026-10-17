@@ -24,6 +24,7 @@ let draftSource: Source
 let snippet: Snippet
 let name: string
 let env: NodeJS.ProcessEnv
+let bootstrapResult: { successes: number; failures: number; role: string; total: number }
 const richText = (text: string) => ({
   root: {
     type: 'root',
@@ -77,20 +78,36 @@ before(
       [oldPost.rows[0].id],
     )
     execFileSync('pnpm', ['db:migrate'], { env, stdio: 'pipe' })
-    const { getPayload } = await import('payload')
+    const { getPayload, createLocalReq, registerFirstUserOperation } = await import('payload')
     const { default: config } = await import('../../src/payload.config')
     payload = await getPayload({ config })
-    owner = await payload.create({
-      collection: 'users',
-      data: {
-        name: 'Owner',
-        email: 'owner@example.test',
-        password: randomBytes(24).toString('hex'),
-        role: 'admin',
-      },
-    })
+    const registrations = await Promise.allSettled(
+      [0, 1].map(async (index) =>
+        registerFirstUserOperation({
+          collection: payload.collections.users,
+          data: {
+            name: 'Owner',
+            email: `bootstrap-${index}@example.test`,
+            password: randomBytes(24).toString('hex'),
+            role: 'editor',
+          },
+          req: await createLocalReq({}, payload),
+        }),
+      ),
+    )
+    const winner = registrations.find((result) => result.status === 'fulfilled')
+    if (!winner || winner.status !== 'fulfilled' || !winner.value.user)
+      throw new Error('Initial registration failed.')
+    owner = winner.value.user
+    bootstrapResult = {
+      successes: registrations.filter((result) => result.status === 'fulfilled').length,
+      failures: registrations.filter((result) => result.status === 'rejected').length,
+      role: owner.role,
+      total: (await payload.count({ collection: 'users' })).totalDocs,
+    }
     editor = await payload.create({
       collection: 'users',
+      user: { ...owner, collection: 'users' },
       data: {
         name: 'Editor',
         email: 'editor@example.test',
@@ -165,6 +182,10 @@ test('forward migration preserves populated posts and ordered slide identifiers'
   await client.query('SELECT credit_u_r_l, license FROM media LIMIT 0')
 })
 
+test('concurrent native first-user registrations create exactly one server-assigned administrator', () => {
+  assert.deepEqual(bootstrapResult, { successes: 1, failures: 1, role: 'admin', total: 1 })
+})
+
 test('anonymous callers cannot write or read drafts, users, or private uploads', async () => {
   await assert.rejects(
     payload.create({
@@ -181,7 +202,7 @@ test('anonymous callers cannot write or read drafts, users, or private uploads',
         name: 'Intruder',
         email: 'intruder@example.test',
         password: randomBytes(24).toString('hex'),
-        role: 'editor',
+        role: 'admin',
       },
     }),
   )
@@ -370,6 +391,38 @@ test('bundle metadata can publish but its files and manifest cannot mutate', asy
       ._status,
     'published',
   )
+})
+
+test('featured embeds require a contextual caption and published source', async () => {
+  const data = {
+    title: 'Featured experiment',
+    slug: 'featured-experiment',
+    summary: 'A featured bundle',
+    featuredSnippet: snippet.id,
+    _status: 'published' as const,
+  }
+  await assert.rejects(payload.create({ collection: 'posts', data }), /caption/)
+  await assert.rejects(
+    payload.create({
+      collection: 'posts',
+      data: {
+        ...data,
+        featuredSnippetCaption: 'A contextual explanation',
+        featuredSnippetSource: draftSource.id,
+      },
+    }),
+    /referenced sources/,
+  )
+  const post = await payload.create({
+    collection: 'posts',
+    data: {
+      ...data,
+      featuredSnippetCaption: 'A contextual explanation',
+      featuredSnippetSource: publicSource.id,
+    },
+  })
+  const read = await payload.findByID({ collection: 'posts', id: post.id, overrideAccess: false })
+  assert.equal(read.featuredSnippetCaption, 'A contextual explanation')
 })
 
 test('migration runner is idempotent and refuses a modified applied checksum', async () => {

@@ -18,6 +18,8 @@ Media has an explicit private/public visibility setting, independent of whether 
 
 Private source notes and CMS account relationships are removed by field access control. Public bylines are stored separately from auth users. Public rich text supports a restricted editor feature set without arbitrary executable HTML or inline upload nodes; executable content belongs in isolated bundles.
 
+User creation takes a transaction-scoped Postgres advisory lock before checking whether the collection is empty. This also covers Payload's native first-user operation, which intentionally bypasses collection access. Exactly one unauthenticated bootstrap request can create an account, and its administrator role is assigned by the server. Additional accounts require an authenticated admin, including trusted Local API provisioning; pass the acting admin as `user`. Editors and unauthenticated callers cannot supply their own role.
+
 ## Assets
 
 Standard uploads use Payload's disk support or official S3 storage plugin, retaining Payload file access control. Bundle import uses the small `ObjectStorage` interface. Disk and S3 adapters use the same object keys and manifest format. New providers can implement that interface without changing the post schema.

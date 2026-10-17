@@ -119,7 +119,9 @@ CREATE TABLE public._posts_v (
     created_at timestamp(3) with time zone DEFAULT now() NOT NULL,
     updated_at timestamp(3) with time zone DEFAULT now() NOT NULL,
     latest boolean,
-    autosave boolean
+    autosave boolean,
+    version_featured_snippet_caption character varying,
+    version_featured_snippet_source_id integer
 );
 
 CREATE TABLE public._posts_v_blocks_download (
@@ -544,7 +546,9 @@ CREATE TABLE public.posts (
     seo_description character varying,
     updated_at timestamp(3) with time zone DEFAULT now() NOT NULL,
     created_at timestamp(3) with time zone DEFAULT now() NOT NULL,
-    _status public.enum_posts_status DEFAULT 'draft'::public.enum_posts_status
+    _status public.enum_posts_status DEFAULT 'draft'::public.enum_posts_status,
+    featured_snippet_caption character varying,
+    featured_snippet_source_id integer
 );
 
 CREATE TABLE public.posts_blocks_download (
@@ -1039,6 +1043,8 @@ CREATE INDEX _posts_v_version_version_created_at_idx ON public._posts_v USING bt
 
 CREATE INDEX _posts_v_version_version_featured_snippet_idx ON public._posts_v USING btree (version_featured_snippet_id);
 
+CREATE INDEX _posts_v_version_version_featured_snippet_source_idx ON public._posts_v USING btree (version_featured_snippet_source_id);
+
 CREATE INDEX _posts_v_version_version_published_at_idx ON public._posts_v USING btree (version_published_at);
 
 CREATE INDEX _posts_v_version_version_slug_idx ON public._posts_v USING btree (version_slug);
@@ -1197,6 +1203,8 @@ CREATE INDEX posts_featured_image_featured_image_source_idx ON public.posts USIN
 
 CREATE INDEX posts_featured_snippet_idx ON public.posts USING btree (featured_snippet_id);
 
+CREATE INDEX posts_featured_snippet_source_idx ON public.posts USING btree (featured_snippet_source_id);
+
 CREATE INDEX posts_featured_video_featured_video_media_idx ON public.posts USING btree (featured_video_media_id);
 
 CREATE INDEX posts_featured_video_featured_video_poster_idx ON public.posts USING btree (featured_video_poster_id);
@@ -1332,6 +1340,9 @@ ALTER TABLE ONLY public._posts_v
     ADD CONSTRAINT _posts_v_version_featured_snippet_id_snippets_id_fk FOREIGN KEY (version_featured_snippet_id) REFERENCES public.snippets(id) ON DELETE SET NULL;
 
 ALTER TABLE ONLY public._posts_v
+    ADD CONSTRAINT _posts_v_version_featured_snippet_source_id_sources_id_fk FOREIGN KEY (version_featured_snippet_source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public._posts_v
     ADD CONSTRAINT _posts_v_version_featured_video_media_id_media_id_fk FOREIGN KEY (version_featured_video_media_id) REFERENCES public.media(id) ON DELETE SET NULL;
 
 ALTER TABLE ONLY public._posts_v
@@ -1438,6 +1449,9 @@ ALTER TABLE ONLY public.posts
 
 ALTER TABLE ONLY public.posts
     ADD CONSTRAINT posts_featured_snippet_id_snippets_id_fk FOREIGN KEY (featured_snippet_id) REFERENCES public.snippets(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.posts
+    ADD CONSTRAINT posts_featured_snippet_source_id_sources_id_fk FOREIGN KEY (featured_snippet_source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
 
 ALTER TABLE ONLY public.posts
     ADD CONSTRAINT posts_featured_video_media_id_media_id_fk FOREIGN KEY (featured_video_media_id) REFERENCES public.media(id) ON DELETE SET NULL;

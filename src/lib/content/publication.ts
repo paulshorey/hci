@@ -95,7 +95,11 @@ export const validatePublication: CollectionBeforeChangeHook<Post> = async ({
   if (relationID(post.featuredImage?.media)) await image(post.featuredImage!)
   if (relationID(post.featuredVideo?.media) || post.featuredVideo?.url)
     await video(post.featuredVideo!)
-  await check('snippets', post.featuredSnippet)
+  if (relationID(post.featuredSnippet)) {
+    caption(post.featuredSnippetCaption)
+    await check('snippets', post.featuredSnippet)
+    await check('sources', post.featuredSnippetSource)
+  }
   for (const source of post.sources || []) await check('sources', source)
   for (const slide of post.slides || []) {
     if (!slide.content?.length) fail('Published slides must contain at least one content block.')

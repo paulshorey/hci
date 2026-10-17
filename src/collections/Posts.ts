@@ -60,6 +60,8 @@ export const Posts: CollectionConfig = {
             },
             { name: 'featuredLink', type: 'text', validate: httpsURL },
             { name: 'featuredSnippet', type: 'relationship', relationTo: 'snippets' },
+            { name: 'featuredSnippetCaption', type: 'textarea' },
+            { name: 'featuredSnippetSource', type: 'relationship', relationTo: 'sources' },
           ],
         },
         {
