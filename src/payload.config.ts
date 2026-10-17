@@ -77,7 +77,7 @@ export default buildConfig({
   graphQL: { disable: true },
   typescript: { outputFile: path.join(dirname, 'generated/payload-types.ts') },
   db: postgresAdapter({
-    pool: { connectionString: required('DATABASE_URL'), max: 10, connectionTimeoutMillis: 10000 },
+    pool: { connectionString: required('DB_HCI_URL'), max: 10, connectionTimeoutMillis: 10000 },
     push: false,
     migrationDir: path.join(dirname, 'migrations'),
     generateSchemaOutputFile: path.join(dirname, 'generated/payload-schema.ts'),

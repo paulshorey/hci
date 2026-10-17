@@ -59,6 +59,6 @@ export function schemaSnapshot(databaseURL: string): string {
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   await mkdir('schema', { recursive: true })
-  await writeFile('schema/current.sql', schemaSnapshot(required('DATABASE_URL')))
+  await writeFile('schema/current.sql', schemaSnapshot(required('DB_HCI_URL')))
   console.log('Wrote schema/current.sql')
 }

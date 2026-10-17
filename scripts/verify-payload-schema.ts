@@ -8,7 +8,7 @@ import config from '../src/payload.config'
 import { required } from '../src/lib/env'
 
 const payload = await getPayload({ config })
-const client = new Client({ connectionString: required('DATABASE_URL') })
+const client = new Client({ connectionString: required('DB_HCI_URL') })
 await client.connect()
 try {
   const normalizeType = (value: string) =>

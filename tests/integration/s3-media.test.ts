@@ -60,7 +60,7 @@ test(
     })
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     Object.assign(process.env, {
-      DATABASE_URL: base.href,
+      DB_HCI_URL: base.href,
       STORAGE_DRIVER: 's3',
       S3_BUCKET: 'hci-test',
       S3_REGION: 'auto',

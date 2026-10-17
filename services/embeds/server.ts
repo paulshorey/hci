@@ -7,7 +7,7 @@ import { embedHandler, type BundleDescriptor } from './handler'
 
 embedOrigin()
 const pool = new Pool({
-  connectionString: required('DATABASE_URL'),
+  connectionString: required('DB_HCI_URL'),
   max: 5,
   connectionTimeoutMillis: 10000,
 })

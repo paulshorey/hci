@@ -62,10 +62,12 @@ before(
     name = `hci_integration_${randomBytes(5).toString('hex')}_test`
     await control.query(`CREATE DATABASE "${name}"`)
     url.pathname = `/${name}`
-    process.env.DATABASE_URL = url.href
+    // A global database for another project must never select HCI's database.
+    process.env.DATABASE_URL = 'postgresql://unused:unused@127.0.0.1:1/wrong_project'
+    process.env.DB_HCI_URL = url.href
     root = await mkdtemp(path.join(tmpdir(), 'hci-integration-'))
     process.env.STORAGE_DIR = root
-    env = { ...process.env, DATABASE_URL: url.href, STORAGE_DIR: root }
+    env = { ...process.env, DB_HCI_URL: url.href, STORAGE_DIR: root }
     execFileSync('pnpm', ['exec', 'tsx', 'tests/integration/apply-baseline.ts'], {
       env,
       stdio: 'pipe',
