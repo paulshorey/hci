@@ -494,7 +494,7 @@ test('featured embeds require a contextual caption and published source', async 
   assert.equal(read.featuredSnippetCaption, 'A contextual explanation')
 })
 
-test('all published media placements prevent withdrawal/deletion until their post is unpublished', async () => {
+test('all published media placements prevent file replacement, withdrawal and deletion', async () => {
   const png = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#557766' } })
     .png()
     .toBuffer()
@@ -601,13 +601,49 @@ test('all published media placements prevent withdrawal/deletion until their pos
       /published post/,
     )
     await assert.rejects(payload.delete({ collection: 'media', id: file.id }), /published post/)
-    assert((await readFile(path.join(root, 'media', file.filename!))).length > 0)
+    const replacement = Buffer.from('Replacement textual evidence')
+    await assert.rejects(
+      payload.update({
+        collection: 'media',
+        id: file.id,
+        data: {},
+        file: {
+          name: 'replacement.txt',
+          data: replacement,
+          size: replacement.length,
+          mimetype: 'text/plain',
+        },
+      }),
+      /published post/,
+    )
+    assert.deepEqual(await readFile(path.join(root, 'media', file.filename!)), bytes)
+    assert.equal(
+      (await payload.findByID({ collection: 'media', id: file.id })).mimeType,
+      file.mimeType,
+    )
+    await payload.update({ collection: 'media', id: file.id, data: { credit: 'Updated credit' } })
     await payload.update({
       collection: 'posts',
       id: post.id,
       draft: false,
       data: { _status: 'draft' },
     })
+    assert.equal(
+      (
+        await payload.update({
+          collection: 'media',
+          id: file.id,
+          data: {},
+          file: {
+            name: 'replacement.txt',
+            data: replacement,
+            size: replacement.length,
+            mimetype: 'text/plain',
+          },
+        })
+      ).mimeType,
+      'text/plain',
+    )
     assert.equal(
       (await payload.update({ collection: 'media', id: file.id, data: { visibility: 'private' } }))
         .visibility,
@@ -654,39 +690,106 @@ test('site logos require public images and protect them until explicitly replace
     payload.update({ collection: 'media', id: privateFile.id, data: { visibility: 'private' } }),
     /site logo/,
   )
+  const original = await readFile(path.join(root, 'media', privateFile.filename!))
+  await assert.rejects(
+    payload.update({
+      collection: 'media',
+      id: privateFile.id,
+      data: {},
+      file: {
+        name: privateFile.filename!,
+        data: original,
+        size: original.length,
+        mimetype: 'image/png',
+      },
+      overwriteExistingFiles: true,
+    }),
+    /site logo/,
+  )
+  assert.deepEqual(await readFile(path.join(root, 'media', privateFile.filename!)), original)
   await payload.updateGlobal({ slug: 'site-settings', data: { logo: null } })
   await payload.update({ collection: 'media', id: privateFile.id, data: { visibility: 'private' } })
 })
 
-test('concurrent post publication and media withdrawal cannot both commit', async () => {
-  const bytes = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#557766' } })
-    .png()
-    .toBuffer()
-  const file = await payload.create({
-    collection: 'media',
-    data: { title: 'Race fixture', visibility: 'public' },
-    file: { name: 'race.png', data: bytes, size: bytes.length, mimetype: 'image/png' },
-  })
-  const outcomes = await Promise.allSettled([
-    payload.create({
-      collection: 'posts',
-      data: {
-        title: 'Publishing race',
-        slug: 'publishing-race',
-        summary: 'Concurrent changes',
-        featuredImage: { media: file.id, alt: 'Fixture', caption: 'Concurrent evidence' },
-        _status: 'published',
+test('bulk replacements, image edits, and file-identity changes preserve published evidence', async () => {
+  const replacement = Buffer.from('Replacement textual evidence')
+  const original = await readFile(path.join(root, 'media', publicFile.filename!))
+  await assert.rejects(
+    payload.update({
+      collection: 'media',
+      where: { id: { equals: publicFile.id } },
+      data: {},
+      file: {
+        name: 'bulk-replacement.txt',
+        data: replacement,
+        size: replacement.length,
+        mimetype: 'text/plain',
       },
     }),
-    payload.update({ collection: 'media', id: file.id, data: { visibility: 'private' } }),
-  ])
-  assert.equal(outcomes.filter((result) => result.status === 'fulfilled').length, 1)
-  const posts = await payload.find({
-    collection: 'posts',
-    where: { slug: { equals: 'publishing-race' }, _status: { equals: 'published' } },
+    /published post/,
+  )
+  for (const data of [{ focalX: 20, focalY: 20 }, { mimeType: 'application/pdf' }])
+    await assert.rejects(
+      payload.update({ collection: 'media', id: publicFile.id, data }),
+      /published post/,
+    )
+  assert.deepEqual(await readFile(path.join(root, 'media', publicFile.filename!)), original)
+  await payload.update({
+    collection: 'media',
+    id: publicFile.id,
+    data: { focalX: publicFile.focalX, focalY: publicFile.focalY, alt: 'Updated description' },
   })
-  const media = await payload.findByID({ collection: 'media', id: file.id })
-  assert(!posts.totalDocs || media.visibility === 'public')
+})
+
+test('concurrent post publication and media withdrawal/replacement cannot both commit', async () => {
+  for (const replacement of [false, true]) {
+    const bytes = await sharp({
+      create: { width: 8, height: 8, channels: 3, background: '#557766' },
+    })
+      .png()
+      .toBuffer()
+    const file = await payload.create({
+      collection: 'media',
+      data: { title: 'Race fixture', visibility: 'public' },
+      file: { name: 'race.png', data: bytes, size: bytes.length, mimetype: 'image/png' },
+    })
+    const replacementBytes = Buffer.from('Replacement textual evidence')
+    const slug = `publishing-race-${replacement}`
+    const outcomes = await Promise.allSettled([
+      payload.create({
+        collection: 'posts',
+        data: {
+          title: 'Publishing race',
+          slug,
+          summary: 'Concurrent changes',
+          featuredImage: { media: file.id, alt: 'Fixture', caption: 'Concurrent evidence' },
+          _status: 'published',
+        },
+      }),
+      payload.update({
+        collection: 'media',
+        id: file.id,
+        data: replacement ? {} : { visibility: 'private' },
+        ...(replacement
+          ? {
+              file: {
+                name: 'race-replacement.txt',
+                data: replacementBytes,
+                size: replacementBytes.length,
+                mimetype: 'text/plain',
+              },
+            }
+          : {}),
+      }),
+    ])
+    assert.equal(outcomes.filter((result) => result.status === 'fulfilled').length, 1)
+    const posts = await payload.find({
+      collection: 'posts',
+      where: { slug: { equals: slug }, _status: { equals: 'published' } },
+    })
+    const media = await payload.findByID({ collection: 'media', id: file.id })
+    assert(!posts.totalDocs || (media.visibility === 'public' && media.mimeType === 'image/png'))
+  }
 })
 
 test('migration runner is idempotent and refuses a modified applied checksum', async () => {

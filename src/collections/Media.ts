@@ -1,6 +1,10 @@
 import path from 'node:path'
 import type { CollectionConfig } from 'payload'
-import { protectDeletion, rejectPublishedReferences } from '@/lib/content/references'
+import {
+  protectDeletion,
+  protectMediaReplacement,
+  rejectPublishedReferences,
+} from '@/lib/content/references'
 import { admin, editor, publicMedia } from '@/lib/content/access'
 import { httpsURL, sourceField } from '@/lib/content/fields'
 import { storageRoot } from '@/lib/env'
@@ -9,6 +13,7 @@ export const Media: CollectionConfig = {
   slug: 'media',
   access: { read: publicMedia, create: editor, update: editor, delete: admin },
   hooks: {
+    beforeOperation: [protectMediaReplacement],
     beforeChange: [
       async ({ data, originalDoc, operation, req }) => {
         if (

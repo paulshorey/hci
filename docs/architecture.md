@@ -18,6 +18,8 @@ Media has an explicit private/public visibility setting, independent of whether 
 
 Withdrawal/deletion hooks protect active published references to media, sources, and bundles, including the published snapshot retained beneath a newer draft. They also protect the configured site logo. Publication and dependency withdrawal share a transaction-scoped Postgres advisory lock, preventing a concurrent publish/privatize race. Saving newer source/bundle metadata drafts remains allowed. Guards read selected reference fields from paginated published snapshots through Payload; an indexed delivery-reference view can replace this rare administrative scan if the corpus grows very large without changing the content model.
 
+Media file replacements, crops, and file-identity changes use the same reference guard and transaction lock in `beforeOperation`, before Payload can delete or overwrite stored files. Both single and bulk updates are covered. Ordinary descriptive metadata edits remain allowed. Upload revisions as new Media records to preserve published evidence until an editor explicitly changes its reference.
+
 The featured-embed caption data migration backfills only missing captions for existing published posts and their published versions, using the existing bundle title. It preserves editorial captions and draft-only content. Existing migrations remain immutable; data repairs use a new forward migration.
 
 Private source notes and CMS account relationships are removed by field access control. Public bylines are stored separately from auth users. Public rich text supports a restricted editor feature set without arbitrary executable HTML or inline upload nodes; executable content belongs in isolated bundles.

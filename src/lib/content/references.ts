@@ -5,6 +5,7 @@ import {
   type CollectionBeforeOperationHook,
   type PayloadRequest,
 } from 'payload'
+import { isDeepStrictEqual } from 'node:util'
 import type { Post } from '@/generated/payload-types'
 import { relationID } from './publication'
 import { lockPublishedContent } from './transactions'
@@ -103,6 +104,62 @@ export const captureDraftSave: CollectionBeforeOperationHook = ({
 }) => {
   if (operation === 'update')
     req.context[`draftSave:${collection.slug}`] = 'draft' in args && args.draft === true
+}
+
+const fileProperties = [
+  'filename',
+  'mimeType',
+  'filesize',
+  'width',
+  'height',
+  'focalX',
+  'focalY',
+  'sizes',
+  'prefix',
+  '_objectKey',
+] as const
+
+export const protectMediaReplacement: CollectionBeforeOperationHook = async ({
+  args,
+  operation,
+  overrideAccess,
+  req,
+}) => {
+  if (operation !== 'update' || (!overrideAccess && !req.user) || !('data' in args)) return
+  const data = args.data as Record<string, unknown>
+  const uploadEdits = req.query?.uploadEdits
+  const editsFile =
+    Boolean(req.file) ||
+    (typeof uploadEdits === 'object' && uploadEdits !== null && Object.keys(uploadEdits).length > 0)
+  if (!editsFile && !fileProperties.some((key) => key in data)) return
+  const where =
+    'id' in args && args.id ? { id: { equals: args.id } } : 'where' in args && args.where
+  if (!where) return
+  // This must run before generateFileData/updateDocument. Payload deletes the
+  // previous disk files before beforeValidate, and writes files before beforeChange.
+  await lockPublishedContent(req)
+  let page = 1
+  while (true) {
+    const result = await req.payload.find({
+      collection: 'media',
+      req,
+      overrideAccess: true,
+      where,
+      depth: 0,
+      limit: 100,
+      page,
+    })
+    for (const file of result.docs) {
+      const stored = file as unknown as Record<string, unknown>
+      if (
+        editsFile ||
+        fileProperties.some((key) => key in data && !isDeepStrictEqual(data[key], stored[key]))
+      )
+        await rejectPublishedReferences(req, 'media', file.id)
+    }
+    if (!result.hasNextPage) break
+    page++
+  }
 }
 
 export const protectPublication =
