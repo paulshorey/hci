@@ -42,6 +42,22 @@ test('infrastructure guards exact targets, preserves named resources and isolate
     assert.equal(web.source?.branch, 'main')
     assert('PAYLOAD_SECRET' in (web.variables || {}))
     assert(!('PAYLOAD_SECRET' in (embeds.variables || {})))
+    for (const service of [web, embeds]) {
+      for (const [variable, output] of Object.entries({
+        S3_BUCKET: 'BUCKET',
+        S3_ENDPOINT: 'ENDPOINT',
+        S3_REGION: 'REGION',
+        S3_ACCESS_KEY_ID: 'ACCESS_KEY_ID',
+        S3_SECRET_ACCESS_KEY: 'SECRET_ACCESS_KEY',
+      })) {
+        assert.deepEqual(service.variables?.[variable], {
+          type: 'reference',
+          resource: 'bucket.assets',
+          output,
+        })
+      }
+      assert.deepEqual(service.variables?.S3_FORCE_PATH_STYLE, { type: 'literal', value: 'false' })
+    }
     process.env.HCI_RAILWAY_TARGET = 'production'
     const production = await application(context, project)
     const prodWeb = (production.resources || []).flat().find((resource) => resource.name === 'web')!
@@ -56,6 +72,14 @@ test('infrastructure guards exact targets, preserves named resources and isolate
         .sort(),
       ['embeds', 'postgres', 'web'],
     )
+    const externalWeb = (external.resources || [])
+      .flat()
+      .find((resource) => resource.name === 'web')!
+    assert(externalWeb.type === 'service')
+    assert.deepEqual(externalWeb.variables?.S3_BUCKET, {
+      type: 'sharedReference',
+      name: 'HCI_S3_BUCKET',
+    })
     process.env.HCI_STORAGE_PROVIDER = 'unknown'
     await assert.rejects(async () => application(context, project), /HCI_STORAGE_PROVIDER/)
   } finally {

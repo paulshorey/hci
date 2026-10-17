@@ -2,21 +2,21 @@
 
 Research checked against official documentation on 2026-10-16. Prices below are USD list prices; hosting compute, databases, request charges, taxes and backup copies are additional where applicable.
 
-## Recommended setup
+## Selected setup
 
-Use **Railway for the application and PostgreSQL, and a private Cloudflare R2 bucket for media**. This is an engineering recommendation for a growing, manually curated media library: the existing S3 interface works with R2, storage remains portable, public files can download directly without Railway proxy bandwidth, and R2 can be managed separately from the application host. Railway Buckets are a good simpler alternative if keeping one provider matters more.
+Use **Railway for the application, PostgreSQL and private Railway Buckets for media**. This is the selected deployment setup. Each Railway environment gets its own bucket instance and isolated credentials. The IaC graph creates the bucket and connects the web/CMS and embed services through native variable references, without copying access keys into shared variables. The application's S3 interface keeps the media model portable if storage needs change later. No Cloudflare account or R2 keys are required for this setup.
 
 Store originals, image derivatives, audio, documents, datasets, downloadable ZIPs and extracted interactive bundles in object storage. PostgreSQL stores metadata, captions, relationships, ordering, access state and bundle manifests. CMS folders organize records; they do not rename object keys. Never rely on the application container filesystem for deployed uploads.
 
-| Option                                                                  | Current pricing and behavior                                                                                                                                                                                      | Fit for this blog                                                                                       |
-| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| [Cloudflare R2 Standard](https://developers.cloudflare.com/r2/pricing/) | $0.015/GB-month; 10 GB-month free monthly; first 1M Class A and 10M Class B operations free monthly, then $4.50/M and $0.36/M. Direct R2 egress is free.                                                          | Recommended primary storage. Private bucket with S3 credentials and signed public downloads.            |
-| [Railway Buckets](https://docs.railway.com/storage-buckets)             | $0.015/GB-month; bucket operations and egress free. Service proxying/uploads still consume service egress. Current S3 feature set excludes object versioning, object locks and lifecycle configuration.           | Simplest account setup. Suitable primary storage with independent backups.                              |
-| [Amazon S3](https://aws.amazon.com/s3/pricing/)                         | Storage, operations and transfer vary by region/class. [Versioning](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html) preserves prior object versions, including after overwrites/deletions. | Strong alternative primary store; particularly useful as an independently protected backup destination. |
+| Option                                                                  | Current pricing and behavior                                                                                                                                                                                      | Fit for this blog                                                                                                    |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| [Railway Buckets](https://docs.railway.com/storage-buckets)             | $0.015/GB-month; bucket operations and egress free. Service proxying/uploads still consume service egress. Current S3 feature set excludes object versioning, object locks and lifecycle configuration.           | Selected primary storage. Private environment-isolated buckets with signed public downloads and independent backups. |
+| [Cloudflare R2 Standard](https://developers.cloudflare.com/r2/pricing/) | $0.015/GB-month; 10 GB-month free monthly; first 1M Class A and 10M Class B operations free monthly, then $4.50/M and $0.36/M. Direct R2 egress is free.                                                          | Optional alternative; no R2 account is needed for the selected setup.                                                |
+| [Amazon S3](https://aws.amazon.com/s3/pricing/)                         | Storage, operations and transfer vary by region/class. [Versioning](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html) preserves prior object versions, including after overwrites/deletions. | Strong alternative primary store; particularly useful as an independently protected backup destination.              |
 
 Railway currently charges service internet egress at [$0.05/GB](https://railway.com/pricing); [bucket and service egress are separate](https://docs.railway.com/storage-buckets/billing). Changing the bucket provider alone does not remove proxy delivery costs.
 
-R2 has [bucket retention locks](https://developers.cloudflare.com/r2/buckets/bucket-locks/), but [its S3 API does not implement S3 versioning](https://developers.cloudflare.com/r2/api/s3/api/). Retention and backups solve different problems. Do not lock the active application bucket by default: rejected imports and deliberate media removal need cleanup. Choose any immutable backup retention separately, before enabling it.
+Railway Buckets currently have no object versioning, object locks or bucket lifecycle rules, so plan independent backups before accumulating production evidence. R2 has [bucket retention locks](https://developers.cloudflare.com/r2/buckets/bucket-locks/), but [its S3 API does not implement S3 versioning](https://developers.cloudflare.com/r2/api/s3/api/). These remain optional backup/provider alternatives. Retention and backups solve different problems; choose immutable backup retention separately from the active library, where rejected imports and deliberate media removal need cleanup.
 
 ## Delivery and large videos
 
@@ -28,7 +28,7 @@ Server uploads default to **100 MiB per file**. `MEDIA_MAX_UPLOAD_MB` accepts in
 
 For short screen recordings, browser-ready H.264/AAC MP4 or WebM uploads are enough. The app does not transcode uploaded originals. MOV files can be preserved as downloadable evidence; convert them for inline playback. For long recordings, unreliable connections or growing viewing traffic, use managed video with resumable browser uploads and adaptive playback:
 
-- [Cloudflare Stream](https://developers.cloudflare.com/stream/pricing/) charges $5/month per 1,000 stored minutes of capacity and $1 per 1,000 delivered minutes, with encoding/ingress included. [Direct creator uploads](https://developers.cloudflare.com/stream/uploading-videos/direct-creator-uploads/) support resumable tus uploads; tus is required above 200 MB. This is my preferred next integration if one Cloudflare account already hosts R2.
+- [Cloudflare Stream](https://developers.cloudflare.com/stream/pricing/) charges $5/month per 1,000 stored minutes of capacity and $1 per 1,000 delivered minutes, with encoding/ingress included. [Direct creator uploads](https://developers.cloudflare.com/stream/uploading-videos/direct-creator-uploads/) support resumable tus uploads; tus is required above 200 MB. Stream can be integrated independently of the selected Railway object storage.
 - [Mux](https://www.mux.com/docs/pricing/overview) is a strong alternative with basic on-demand input free; storage/delivery depend on resolution and quality. Compare its current included allowances against actual upload/watch minutes before selecting it.
 
 Neither service's direct upload/webhook integration is implemented yet. Do not purchase it or supply video-service keys until the workload calls for it. That integration should add provider asset IDs, processing status, signed playback and verified webhooks while retaining the original Media/Source records. Keep archival originals when visual fidelity matters; adaptive encodes are delivery copies.
@@ -36,25 +36,27 @@ Neither service's direct upload/webhook integration is implemented yet. Do not p
 ## What to set up and provide
 
 1. **Railway:** select the workspace/project and development/production environments. For deployment CI, provide an environment-scoped project token per environment; keep the selected IDs in configuration. Select the app hostname and a separate embed hostname. No new provider account is needed if an existing one is suitable.
-2. **Primary storage:** create separate private development and production buckets. For R2, generate an Object Read & Write S3 credential scoped to the selected bucket(s), not an account-wide administration token. Supply the values below through ignored local environment configuration and the corresponding Railway secrets. AWS/Railway use the equivalent bucket-scoped credentials available from that provider. The active library needs read, write, delete and the adapter's metadata/multipart operations; enable no public bucket access.
+2. **Railway Buckets:** keep `HCI_STORAGE_PROVIDER=railway` (the IaC default). Select `HCI_BUCKET_REGION` before the first apply: `sjc`, `iad`, `ams` or `sin`. This placement cannot be changed after creation. Let the graph create the `assets` bucket in each environment; no external storage account or manually supplied production S3 keys are needed. Native references use Railway's generated `BUCKET`, `ENDPOINT`, `REGION`, `ACCESS_KEY_ID` and `SECRET_ACCESS_KEY` values. The active library needs read/write/delete and metadata/multipart operations. See the [deployment runbook](../.railway/README.md) for resource bootstrap and planning.
 3. **Email:** connect an existing SMTP service or use [Resend SMTP](https://resend.com/docs/send-with-smtp) for CMS password recovery. It needs a verified sender domain and a sending key. Resend settings: `SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465`, `SMTP_USER=resend`, `SMTP_PASSWORD=<sending key>`, and `SMTP_FROM=<verified address>`. No SMTP key is needed for local editing.
 4. **Backups:** choose a separate destination and retention before real evidence is accumulated. See the recovery plan below. These credentials should be separate from the application runtime.
 
-| Environment variable   | R2 example / purpose                                    |
-| ---------------------- | ------------------------------------------------------- |
-| `STORAGE_DRIVER`       | `s3`                                                    |
-| `S3_BUCKET`            | Exact private bucket name                               |
-| `S3_ENDPOINT`          | `https://<account-id>.r2.cloudflarestorage.com`         |
-| `S3_REGION`            | `auto`                                                  |
-| `S3_FORCE_PATH_STYLE`  | `true` for R2; provider-specific for other S3 endpoints |
-| `S3_ACCESS_KEY_ID`     | Bucket-scoped S3 access key                             |
-| `S3_SECRET_ACCESS_KEY` | Matching S3 secret                                      |
-| `S3_SIGNED_DOWNLOADS`  | `true` by default                                       |
-| `MEDIA_MAX_UPLOAD_MB`  | `100` initially                                         |
+The following application variables are wired by IaC for deployment. For a local live-bucket test, copy values from that environment's Railway bucket **Credentials** tab into the ignored `.env`:
 
-Place secrets directly in Railway service/shared variables or the ignored local `.env` through a secure channel; tell the agent which profile or file to use. Do not put values in chat, Git, screenshots or documentation. A Cloudflare DNS token is only needed if custom domain configuration will also be delegated; it is separate from R2 storage credentials.
+| Environment variable   | Railway source / purpose                                                            |
+| ---------------------- | ----------------------------------------------------------------------------------- |
+| `STORAGE_DRIVER`       | `s3`                                                                                |
+| `S3_BUCKET`            | `assets.BUCKET`: actual S3 name including Railway's suffix, not the display name    |
+| `S3_ENDPOINT`          | `assets.ENDPOINT`: base endpoint from Credentials; do not prepend the bucket name   |
+| `S3_REGION`            | `assets.REGION`: S3 signing region from Credentials, distinct from bucket placement |
+| `S3_FORCE_PATH_STYLE`  | `false` for new Railway buckets (virtual-hosted URLs)                               |
+| `S3_ACCESS_KEY_ID`     | `assets.ACCESS_KEY_ID`: generated bucket credential                                 |
+| `S3_SECRET_ACCESS_KEY` | `assets.SECRET_ACCESS_KEY`: matching generated secret                               |
+| `S3_SIGNED_DOWNLOADS`  | `true` by default                                                                   |
+| `MEDIA_MAX_UPLOAD_MB`  | `100` initially                                                                     |
 
-For R2/AWS storage, set the IaC authoring variable `HCI_STORAGE_PROVIDER=external-s3`. This omits creation of a Railway bucket while keeping the same service/storage variable contract. The default `railway` still creates the native bucket and requires its immutable region. Set `HCI_S3_FORCE_PATH_STYLE` in Railway shared variables (`true` for R2). See [.railway/README.md](../.railway/README.md).
+Railway's [bucket connection documentation](https://docs.railway.com/storage-buckets#connecting-to-your-bucket) describes these values and variable references. Older Railway buckets may require path-style URLs; check Credentials before connecting an existing bucket and adjust the owning IaC map if needed. Keep deployment tokens, application secrets and local bucket credentials in Railway variables or ignored local configuration through a secure channel; tell the agent which profile or file to use. Do not put secret values in chat, Git, screenshots or documentation.
+
+The optional `HCI_STORAGE_PROVIDER=external-s3` path remains for future migrations to another S3-compatible provider. It omits the Railway bucket and instead reads the `HCI_S3_*` shared variables listed in [.railway/README.md](../.railway/README.md). These shared credentials are not required for the selected Railway setup.
 
 Select the provider before the first apply. Changing the provider on an initialized graph can remove its owned Railway bucket; it requires a reviewed copy/verification/migration plan. Application portability does not imply that toggling a provider migrates existing objects.
 

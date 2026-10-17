@@ -2,7 +2,7 @@
 
 ## Supported storage
 
-Development defaults to ignored `storage/`. Railway application containers are ephemeral, so production configuration selects `STORAGE_DRIVER=s3`. Supply bucket, region, optional endpoint, access key, and secret through environment variables. AWS S3, Railway Buckets and Cloudflare R2 use the same interface. Configure path style explicitly if the chosen S3 endpoint requires it; R2 uses `S3_REGION=auto` and `S3_FORCE_PATH_STYLE=true`. See [provider selection and setup](storage-options.md).
+Development defaults to ignored `storage/`. Deployed uploads and bundles use a private Railway Bucket with `STORAGE_DRIVER=s3`; application containers are ephemeral. The Railway graph connects each service to its environment's bucket through native credential references. For local access, use the bucket's Credentials values: the exact S3 bucket name, base endpoint, signing region, access key and secret. The signing region is distinct from the immutable placement region selected at creation. New Railway buckets use virtual-hosted URLs with `S3_FORCE_PATH_STYLE=false`; check the Credentials tab for older buckets that require path style. The S3 interface also remains compatible with other providers. See [storage selection and setup](storage-options.md).
 
 The Payload S3 plugin handles normal media and retains its authorized delivery routes. Public requests redirect to five-minute signed bucket URLs by default; editor previews remain proxied. Set `S3_SIGNED_DOWNLOADS=false` to proxy everything. Bundles use the S3 adapter in `src/lib/storage`. Keep the bucket private. Railway Buckets do not directly host websites; the embed service serves bundle objects under a stable relative URL structure.
 
