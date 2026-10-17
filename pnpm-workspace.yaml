@@ -1,0 +1,12 @@
+packages:
+  - .
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - unrs-resolver
+  - '@parcel/watcher'
+overrides:
+  '@payloadcms/next>sass': 1.105.2
+  'monaco-editor>dompurify': 3.4.17
+  '@esbuild-kit/core-utils>esbuild': 0.25.12
+  '@payloadcms/plugin-cloud-storage@3.91.0>find-node-modules': '-'

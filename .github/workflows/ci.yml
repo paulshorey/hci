@@ -1,0 +1,72 @@
+name: Application and database contracts
+on:
+  pull_request:
+  push:
+    branches: [main, prod]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: hci
+          POSTGRES_PASSWORD: hci
+          POSTGRES_DB: hci_test
+        ports: ['55432:5432']
+        options: >-
+          --health-cmd "pg_isready -U hci -d hci_test"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://hci:hci@127.0.0.1:55432/hci_test
+      HCI_TEST_DATABASE_URL: postgresql://hci:hci@127.0.0.1:55432/hci_test
+      PAYLOAD_SECRET: ci-only-placeholder-for-disposable-database
+      EMBED_PREVIEW_SECRET: ci-only-second-placeholder-for-disposable-database
+      SITE_URL: http://localhost:4500
+      EMBED_ORIGIN: http://localhost:4501
+      STORAGE_DRIVER: disk
+      ALLOW_PERSISTENT_DISK: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --prod --audit-level=high
+      - name: Install matching PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common ca-certificates
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-17
+          echo '/usr/lib/postgresql/17/bin' >> "$GITHUB_PATH"
+      - name: Keep established migration history immutable
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/check-migration-history.mjs
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm check-types
+      - run: pnpm test
+      - run: pnpm db:verify
+      - run: pnpm test:integration
+      - run: pnpm db:migrate
+      - run: pnpm seed
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failure-evidence
+          path: |
+            playwright-report/
+            test-results/
