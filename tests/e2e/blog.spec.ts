@@ -31,6 +31,7 @@ test('journal, comparison slides, video, interactive modules, deep links and rea
   await expect
     .poll(() => page.locator('video').evaluate((element) => (element as HTMLVideoElement).paused))
     .toBe(true)
+  await page.locator('.slide:not([hidden]) .frame-shell').scrollIntoViewIfNeeded()
   const frame = page.frameLocator('iframe[title="Interactive target size example"]')
   await expect(frame.getByText('Sample content · module imports', { exact: false })).toBeVisible()
   await frame.getByRole('button', { name: 'First target' }).click()
@@ -211,7 +212,7 @@ test('CMS ZIP import, authenticated bundle previews, publishing and private medi
   })
   await page.goto('/bundles/import')
   await page.getByLabel('Title', { exact: true }).fill('A browser-imported bundle')
-  await page.getByLabel('ZIP bundle').setInputFiles('tests/fixtures/hello.zip')
+  await page.getByLabel('ZIP bundle').setInputFiles('tests/fixtures/wrapped.zip')
   await page.getByRole('button', { name: 'Import draft bundle' }).click()
   await page.waitForURL(/\/admin\/collections\/snippets\/\d+/)
   const id = page.url().split('/').at(-1)!
@@ -220,6 +221,9 @@ test('CMS ZIP import, authenticated bundle previews, publishing and private medi
   await expect(
     page.frameLocator('iframe').getByRole('heading', { name: 'Imported example' }),
   ).toBeVisible()
+  await expect(
+    page.frameLocator('iframe').getByRole('heading', { name: 'Imported example' }),
+  ).toHaveCSS('color', 'rgb(35, 94, 88)')
   const published = await page.request.patch(`/api/snippets/${id}`, {
     headers: { Origin: 'http://localhost:4500' },
     data: { _status: 'published' },

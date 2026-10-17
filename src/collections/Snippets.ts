@@ -7,10 +7,9 @@ export const Snippets: CollectionConfig = {
   admin: {
     useAsTitle: 'title',
     group: 'Library',
-    hideAPIURL: false,
     components: { beforeList: ['/components/EditorialLinks#BundleLibraryHelp'] },
     description:
-      'Import a ZIP at /bundles/import, or use pnpm snippets:import. Files are immutable; import an update as a new version.',
+      'Use Import an interactive ZIP to add a bundle. Each import keeps its original files; import revisions separately, then select the version in your article.',
     preview: (doc) => `/snippet-preview?id=${doc.id}`,
   },
   access: {

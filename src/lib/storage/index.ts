@@ -18,8 +18,13 @@ export function safeRelativePath(value: string): string {
   if (
     !value ||
     value.length > 240 ||
-    !/^[a-zA-Z0-9_./-]+$/.test(value) ||
-    value.split('/').some((part) => !part || part === '.' || part === '..' || part.startsWith('.'))
+    !/^[\p{L}\p{M}\p{N} _./-]+$/u.test(value) ||
+    value
+      .split('/')
+      .some(
+        (part) =>
+          !part || part.trim() !== part || part === '.' || part === '..' || part.startsWith('.'),
+      )
   ) {
     throw new Error(
       'File paths must be relative, without hidden files, empty components, or traversal.',

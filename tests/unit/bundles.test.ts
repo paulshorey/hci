@@ -1,10 +1,15 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { mkdtemp, symlink, writeFile, rm } from 'node:fs/promises'
+import { mkdtemp, symlink, writeFile, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { deflateRawSync, crc32 } from 'node:zlib'
-import { readFolder, readZip, validateFiles } from '../../src/lib/snippets/bundles'
+import {
+  prepareBundleFiles,
+  readFolder,
+  readZip,
+  validateFiles,
+} from '../../src/lib/snippets/bundles'
 import { safeRelativePath } from '../../src/lib/storage/index'
 
 function zipFile(name: string, contents: Buffer, mode = 0o100644): Buffer {
@@ -61,6 +66,24 @@ test('bundle paths reject traversal, ambiguity, hidden files, and absolute names
   ])
     assert.throws(() => safeRelativePath(value))
   assert.equal(safeRelativePath('assets/a-b_1.woff2'), 'assets/a-b_1.woff2')
+  assert.equal(safeRelativePath('My experiment/café image.png'), 'My experiment/café image.png')
+  assert.throws(() => safeRelativePath('trailing /image.png'))
+})
+
+test('Finder ZIP folders import directly with spaces, Unicode and portable collision checks', async () => {
+  const files = prepareBundleFiles(await readZip(await readFile('tests/fixtures/wrapped.zip')))
+  assert.deepEqual(files.map((file) => file.path).sort(), ['assets/café style.css', 'index.html'])
+  assert.equal(validateFiles(files).files.length, 2)
+  assert.throws(() => prepareBundleFiles([{ path: '../index.html', bytes: Buffer.from('x') }]))
+  assert.throws(
+    () =>
+      validateFiles([
+        { path: 'index.html', bytes: Buffer.from('x') },
+        { path: 'café.css', bytes: Buffer.from('x') },
+        { path: 'cafe\u0301.css', bytes: Buffer.from('y') },
+      ]),
+    /colliding/,
+  )
 })
 
 test('manifest rejects missing entry, case collisions, unsupported files, and file floods', () => {

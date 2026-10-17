@@ -40,9 +40,9 @@ export function BundleForm() {
         <input name="file" type="file" accept=".zip,application/zip" required />
       </label>
       <p>
-        Upload the contents of your folder, with the entry file at the ZIP root. Up to 25 MB
-        compressed, 100 MB expanded, and 500 files. HTML, CSS, JavaScript, JSON, fonts, images, and
-        web video are supported.
+        ZIP the contents or compress a single folder containing index.html. Finder metadata is
+        ignored. Up to 25 MB compressed, 100 MB expanded, and 500 files. HTML, CSS, JavaScript,
+        JSON, fonts, images, and web video are supported.
       </p>
       {error && <p role="alert">{error}</p>}
       <button className="button" type="submit" disabled={busy}>

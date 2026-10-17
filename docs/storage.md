@@ -12,12 +12,12 @@ S3 adapters are tested with signed AWS SDK requests to a local HTTP fixture. Liv
 
 - ZIP: 25 MiB compressed.
 - Bundle: 100 MiB expanded, 500 files, 20 MiB per file.
-- Paths: relative ASCII paths up to 240 characters, without hidden components, symlinks, traversal, ambiguous separators, or case collisions.
+- Paths: relative paths up to 240 characters (Unicode letters/numbers, spaces, dots, underscores and hyphens), without hidden components, symlinks, traversal, ambiguous separators, or case collisions.
 - Entry: an existing `.html` file.
 - Types: HTML, CSS, JS/MJS, JSON, PNG/JPEG/WebP/AVIF/GIF/SVG, WOFF/WOFF2, MP4/WebM, and plain text.
 - Ordinary Payload uploads: 100 MiB by default, configurable with `MEDIA_MAX_UPLOAD_MB` from 1–500. Whole-request limits match the per-file limit plus multipart overhead; oversized uploads reject rather than truncate. Photos, MP4/WebM, MOV originals, MP3/M4A/AAC/OGG/WAV/FLAC audio, PDFs, text, Markdown, CSV, JSON, DOCX/XLSX/PPTX and ZIPs are accepted. Browser codec support varies. Convert MOV originals for playback; they remain valid download evidence. Executable HTML/JS/SVG uploads belong in interactive bundles.
 
-Create a ZIP with the entry file at the root, or set the entry path explicitly. For example, from inside a bundle folder:
+Compress a single folder containing index.html, or create a ZIP with the entry file at its root. The importer removes one unambiguous wrapper folder when using the default entry and ignores .DS_Store / __MACOSX metadata. Otherwise set the entry path explicitly. For example, from inside a bundle folder:
 
 ```sh
 zip -r ../experiment.zip index.html styles.css main.js assets

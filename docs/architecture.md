@@ -48,6 +48,8 @@ Committed Payload migrations define the upgrade path. The application wrapper ho
 
 The native Payload CLI is still used to generate migrations. Deployment must use `pnpm db:migrate`; directly invoking `payload migrate` bypasses the checksum wrapper. A pinned Payload 3.91 reconnect client prevents normal short-lived CLI exit, so scripts close application resources and explicitly exit after successful completion, following Payload's own CLI behavior. Integration tests isolate and terminate their temporary database connections.
 
+Only forward migration execution is supported and verified. Native generated `down` functions are retained as generator output, not a supported rollback contract. In particular, the editor-media migration's generated down sequence drops the folder table with CASCADE before dependent constraints, so it cannot be used to reverse that migration. It is already checksummed/applied and must remain immutable. Use a new reviewed forward migration for schema reversions, or restore a matching tested backup into an isolated environment; never execute native down/reset commands against deployed data.
+
 ## Deliberate boundaries
 
 The template does not perform video transcoding, scrape evidence, run a JavaScript server inside a bundle, or install dependencies supplied by a bundle. Upload browser-playable MP4/WebM or link supported external video providers. Bundle code runs only in a browser sandbox. A future transcoding or research pipeline should run separately and produce ordinary Media/Source records.

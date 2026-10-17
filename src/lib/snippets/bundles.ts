@@ -36,6 +36,27 @@ export type Manifest = {
   files: { path: string; size: number; contentType: string; sha256: string }[]
 }
 
+function finderMetadata(name: string) {
+  if (name === '__MACOSX' || name.startsWith('__MACOSX/')) return true
+  if (path.posix.basename(name) !== '.DS_Store') return false
+  const parent = path.posix.dirname(name)
+  if (parent !== '.') safeRelativePath(parent)
+  return true
+}
+
+export function prepareBundleFiles(files: BundleFile[], entryFile = 'index.html'): BundleFile[] {
+  for (const file of files) safeRelativePath(file.path)
+  if (entryFile !== 'index.html' || files.some((file) => file.path === entryFile)) return files
+  const root = files[0]?.path.split('/')[0]
+  if (
+    root &&
+    files.every((file) => file.path.startsWith(`${root}/`)) &&
+    files.some((file) => file.path === `${root}/index.html`)
+  )
+    return files.map((file) => ({ ...file, path: file.path.slice(root.length + 1) }))
+  return files
+}
+
 export function validateFiles(files: BundleFile[], entryFile = 'index.html'): Manifest {
   safeRelativePath(entryFile)
   if (!entryFile.endsWith('.html')) throw new Error('Entry file must be HTML.')
@@ -45,7 +66,7 @@ export function validateFiles(files: BundleFile[], entryFile = 'index.html'): Ma
   let size = 0
   const manifest = files.map((file) => {
     safeRelativePath(file.path)
-    const canonical = file.path.toLowerCase()
+    const canonical = file.path.normalize('NFC').toLowerCase()
     if (seen.has(canonical)) throw new Error('Duplicate or case-colliding bundle paths.')
     seen.add(canonical)
     const contentType = contentTypes[path.extname(file.path).toLowerCase()]
@@ -73,8 +94,9 @@ export async function readFolder(folder: string): Promise<BundleFile[]> {
     if ((await lstat(directory)).isSymbolicLink()) throw new Error('Symlinks are not supported.')
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const name = relative ? `${relative}/${entry.name}` : entry.name
-      safeRelativePath(name)
       if (entry.isSymbolicLink()) throw new Error('Symlinks are not supported.')
+      if (finderMetadata(name)) continue
+      safeRelativePath(name)
       if (entry.isDirectory()) await visit(name)
       else {
         const stat = await lstat(path.join(root, name))
@@ -118,6 +140,10 @@ export async function readZip(bytes: Buffer): Promise<BundleFile[]> {
           if (mode === 0o120000) throw new Error('ZIP symlinks are not supported.')
           if (entry.generalPurposeBitFlag & 1) throw new Error('Encrypted ZIPs are not supported.')
           const name = entry.fileName.replace(/\/$/, '')
+          if (finderMetadata(name)) {
+            zip.readEntry()
+            return
+          }
           safeRelativePath(name)
           if (entry.fileName.endsWith('/')) {
             zip.readEntry()
@@ -179,6 +205,7 @@ export async function importBundle({
   storage?: ObjectStorage
 }) {
   if (!title.trim()) throw new Error('A bundle title is required.')
+  files = prepareBundleFiles(files, entryFile)
   const manifest = validateFiles(files, entryFile)
   const bundleVersion = randomUUID()
   const storagePrefix = `snippets/${bundleVersion}`
