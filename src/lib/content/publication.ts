@@ -1,5 +1,6 @@
 import { APIError, type CollectionBeforeChangeHook } from 'payload'
 import type { Post } from '@/generated/payload-types'
+import { lockPublishedContent } from './transactions'
 
 export function relationID(value: unknown): number | string | null {
   if (typeof value === 'number' || typeof value === 'string') return value
@@ -36,6 +37,7 @@ export const validatePublication: CollectionBeforeChangeHook<Post> = async ({
 }) => {
   const post = { ...originalDoc, ...data } as Partial<Post>
   if (post._status !== 'published') return data
+  await lockPublishedContent(req)
   const fail = (message: string): never => {
     throw new APIError(message, 400)
   }

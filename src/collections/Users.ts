@@ -1,6 +1,7 @@
 import { APIError, type CollectionConfig } from 'payload'
-import { sql, type MigrateUpArgs } from '@payloadcms/db-postgres'
+import { sql } from '@payloadcms/db-postgres'
 import { admin, adminField } from '@/lib/content/access'
+import { transactionDatabase } from '@/lib/content/transactions'
 
 export const Users: CollectionConfig = {
   slug: 'users',
@@ -24,10 +25,7 @@ export const Users: CollectionConfig = {
     beforeOperation: [
       async ({ operation, req }) => {
         if (operation !== 'create') return
-        const transactionID = await req.transactionID
-        const transaction = (transactionID &&
-          req.payload.db.sessions?.[String(transactionID)]?.db) as MigrateUpArgs['db'] | undefined
-        if (!transaction) throw new APIError('User creation requires a database transaction.', 500)
+        const transaction = await transactionDatabase(req)
         // Payload starts this transaction before beforeOperation. The lock lasts
         // through insertion/login and commit, including native first-registration.
         await transaction.execute(sql`SELECT pg_advisory_xact_lock(728451603)`)

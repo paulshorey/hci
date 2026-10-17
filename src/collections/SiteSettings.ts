@@ -1,9 +1,31 @@
-import type { GlobalConfig } from 'payload'
+import { APIError, type GlobalConfig } from 'payload'
 import { admin } from '@/lib/content/access'
+import { relationID } from '@/lib/content/publication'
+import { lockPublishedContent } from '@/lib/content/transactions'
 
 export const SiteSettings: GlobalConfig = {
   slug: 'site-settings',
   access: { read: () => true, update: admin },
+  hooks: {
+    beforeChange: [
+      async ({ data, originalDoc, req }) => {
+        const id = relationID(data.logo === undefined ? originalDoc?.logo : data.logo)
+        if (id) {
+          await lockPublishedContent(req)
+          const media = await req.payload.findByID({
+            collection: 'media',
+            id,
+            req,
+            overrideAccess: true,
+            depth: 0,
+          })
+          if (media.visibility !== 'public' || !media.mimeType?.startsWith('image/'))
+            throw new APIError('Choose a public image for the site logo.', 400)
+        }
+        return data
+      },
+    ],
+  },
   fields: [
     { name: 'title', type: 'text', required: true, defaultValue: 'Human / Computer' },
     {

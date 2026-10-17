@@ -1,5 +1,6 @@
 import path from 'node:path'
 import type { CollectionConfig } from 'payload'
+import { protectDeletion, rejectPublishedReferences } from '@/lib/content/references'
 import { admin, editor, publicMedia } from '@/lib/content/access'
 import { httpsURL, sourceField } from '@/lib/content/fields'
 import { storageRoot } from '@/lib/env'
@@ -7,6 +8,20 @@ import { storageRoot } from '@/lib/env'
 export const Media: CollectionConfig = {
   slug: 'media',
   access: { read: publicMedia, create: editor, update: editor, delete: admin },
+  hooks: {
+    beforeChange: [
+      async ({ data, originalDoc, operation, req }) => {
+        if (
+          operation === 'update' &&
+          originalDoc.visibility === 'public' &&
+          data.visibility === 'private'
+        )
+          await rejectPublishedReferences(req, 'media', originalDoc.id)
+        return data
+      },
+    ],
+    beforeDelete: [protectDeletion('media')],
+  },
   upload: {
     staticDir: path.join(storageRoot(), 'media'),
     mimeTypes: [

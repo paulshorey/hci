@@ -38,6 +38,8 @@ The seed includes three clearly labeled illustrative articles, generated interfa
 5. Add captions and image alt text. Publish referenced sources/bundles and make referenced files public before publishing the post.
 6. Use **Preview** to inspect an authenticated draft, then publish. A newer unpublished revision does not replace the public version.
 
+Published relationships remain protected after publication. Remove a managed reference from the published article, or unpublish that article, before making its media private, unpublishing its source/bundle, or deleting the referenced record. Removing a reference only in a newer draft does not change the live article. Site logos similarly require public images and protect the chosen file until the logo is replaced.
+
 Site branding, descriptions, logo, internal navigation, and display time zone are managed in **Site Settings**. The initial display time zone is America/Chicago; stored timestamps remain absolute instants. Users have admin/editor roles. Only admins manage accounts, delete content, or change site settings. Public reads always enforce Payload access control; the public byline is separate from the private CMS account relationship.
 
 ## Interactive bundles

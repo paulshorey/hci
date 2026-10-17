@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { editorialAccess } from '@/lib/content/access'
+import { captureDraftSave, protectDeletion, protectPublication } from '@/lib/content/references'
 
 export const Snippets: CollectionConfig = {
   slug: 'snippets',
@@ -12,7 +13,10 @@ export const Snippets: CollectionConfig = {
   access: editorialAccess,
   versions: { drafts: true, maxPerDoc: 20 },
   hooks: {
+    beforeOperation: [captureDraftSave],
+    beforeDelete: [protectDeletion('snippets')],
     beforeChange: [
+      protectPublication('snippets'),
       ({ data, originalDoc, operation, context }) => {
         const immutable = ['storagePrefix', 'entryFile', 'manifest', 'bundleVersion']
         if (operation === 'create' && !context.bundleImport)

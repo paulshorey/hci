@@ -3,13 +3,14 @@ import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { randomBytes } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Client } from 'pg'
 import sharp from 'sharp'
 import type { Payload } from 'payload'
 import type { Media, Source, Snippet, User } from '../../src/generated/payload-types'
+import type { Post } from '../../src/generated/payload-types'
 
 let payload: Payload
 let client: Client
@@ -76,6 +77,25 @@ before(
     await client.query(
       "INSERT INTO posts_slides(id, _parent_id, _order, title, layout) VALUES ('retained-slide', $1, 0, 'Original slide', 'stacked')",
       [oldPost.rows[0].id],
+    )
+    const legacySnippet = await client.query(
+      "INSERT INTO snippets(title, storage_prefix, bundle_version, entry_file, manifest, _status) VALUES ('Legacy experiment', 'snippets/legacy', 'legacy', 'index.html', '{\"files\":[]}', 'published') RETURNING id",
+    )
+    const legacyPost = await client.query(
+      "INSERT INTO posts(title, slug, summary, featured_video_source_type, featured_snippet_id, _status) VALUES ('Legacy interactive article', 'legacy-interactive', 'A pre-caption fixture', 'upload', $1, 'published') RETURNING id",
+      [legacySnippet.rows[0].id],
+    )
+    await client.query(
+      "INSERT INTO _posts_v(parent_id, version_title, version_slug, version_summary, version_featured_video_source_type, version_featured_snippet_id, version__status, latest) VALUES ($1, 'Legacy interactive article', 'legacy-interactive', 'A pre-caption fixture', 'upload', $2, 'published', true)",
+      [legacyPost.rows[0].id, legacySnippet.rows[0].id],
+    )
+    execFileSync('pnpm', ['exec', 'tsx', 'tests/integration/apply-baseline.ts', '4'], {
+      env,
+      stdio: 'pipe',
+    })
+    await client.query(
+      "INSERT INTO posts(title, slug, summary, featured_video_source_type, featured_snippet_id, featured_snippet_caption, _status) VALUES ('An existing caption', 'retained-caption', 'Keep editorial context', 'upload', $1, 'An editorial caption', 'published')",
+      [legacySnippet.rows[0].id],
     )
     execFileSync('pnpm', ['db:migrate'], { env, stdio: 'pipe' })
     const { getPayload, createLocalReq, registerFirstUserOperation } = await import('payload')
@@ -180,6 +200,30 @@ test('forward migration preserves populated posts and ordered slide identifiers'
   )
   assert.deepEqual(result.rows, [{ title: 'Retained article', id: 'retained-slide', _order: 0 }])
   await client.query('SELECT credit_u_r_l, license FROM media LIMIT 0')
+  assert.equal(
+    (
+      await client.query(
+        "SELECT featured_snippet_caption FROM posts WHERE slug = 'legacy-interactive'",
+      )
+    ).rows[0].featured_snippet_caption,
+    'Interactive exhibit: Legacy experiment',
+  )
+  assert.equal(
+    (
+      await client.query(
+        "SELECT featured_snippet_caption FROM posts WHERE slug = 'retained-caption'",
+      )
+    ).rows[0].featured_snippet_caption,
+    'An editorial caption',
+  )
+  assert.equal(
+    (
+      await client.query(
+        "SELECT version_featured_snippet_caption FROM _posts_v WHERE version_slug = 'legacy-interactive'",
+      )
+    ).rows[0].version_featured_snippet_caption,
+    'Interactive exhibit: Legacy experiment',
+  )
 })
 
 test('concurrent native first-user registrations create exactly one server-assigned administrator', () => {
@@ -219,7 +263,16 @@ test('anonymous callers cannot write or read drafts, users, or private uploads',
   assert(
     (await payload.findByID({ collection: 'media', id: publicFile.id, overrideAccess: false })).id,
   )
-  assert.equal((await payload.find({ collection: 'posts', overrideAccess: false })).totalDocs, 0)
+  assert.equal(
+    (
+      await payload.find({
+        collection: 'posts',
+        overrideAccess: false,
+        where: { slug: { equals: 'retained-article' } },
+      })
+    ).totalDocs,
+    0,
+  )
   assert.equal(
     await payload.findByID({
       collection: 'snippets',
@@ -336,7 +389,19 @@ test('saving a newer draft retains the published article for anonymous readers',
     collection: 'posts',
     id: post.id,
     draft: true,
-    data: { title: 'Unreleased revision', _status: 'draft' },
+    data: {
+      title: 'Unreleased revision',
+      slides: [
+        {
+          title: 'Replacement draft',
+          layout: 'stacked',
+          content: [
+            { blockType: 'richText', body: richText('Draft without the published images') },
+          ],
+        },
+      ],
+      _status: 'draft',
+    },
   })
   const publicPost = await payload.findByID({
     collection: 'posts',
@@ -352,6 +417,10 @@ test('saving a newer draft retains the published article for anonymous readers',
     draft: true,
   })
   assert.equal(draft.title, 'Unreleased revision')
+  await assert.rejects(
+    payload.update({ collection: 'media', id: publicFile.id, data: { visibility: 'private' } }),
+    /published post/,
+  )
 })
 
 test('public sources omit private research notes', async () => {
@@ -423,6 +492,201 @@ test('featured embeds require a contextual caption and published source', async 
   })
   const read = await payload.findByID({ collection: 'posts', id: post.id, overrideAccess: false })
   assert.equal(read.featuredSnippetCaption, 'A contextual explanation')
+})
+
+test('all published media placements prevent withdrawal/deletion until their post is unpublished', async () => {
+  const png = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#557766' } })
+    .png()
+    .toBuffer()
+  const movie = await readFile('samples/focus-demo.webm')
+  const cases: { name: string; video?: boolean; post: (id: number) => Partial<Post> }[] = [
+    {
+      name: 'featured-image',
+      post: (id) => ({ featuredImage: { media: id, alt: 'Fixture', caption: 'A cover' } }),
+    },
+    {
+      name: 'featured-video',
+      video: true,
+      post: (id) => ({ featuredVideo: { sourceType: 'upload', media: id, caption: 'A movie' } }),
+    },
+    {
+      name: 'featured-poster',
+      post: (id) => ({
+        featuredVideo: {
+          sourceType: 'external',
+          url: 'https://example.com/movie.mp4',
+          poster: id,
+          caption: 'An external movie',
+        },
+      }),
+    },
+    {
+      name: 'slide-image',
+      post: (id) => ({
+        slides: [
+          {
+            layout: 'stacked',
+            content: [{ blockType: 'image', media: id, alt: 'Fixture', caption: 'An image' }],
+          },
+        ],
+      }),
+    },
+    {
+      name: 'slide-video',
+      video: true,
+      post: (id) => ({
+        slides: [
+          {
+            layout: 'stacked',
+            content: [{ blockType: 'video', sourceType: 'upload', media: id, caption: 'A movie' }],
+          },
+        ],
+      }),
+    },
+    {
+      name: 'slide-poster',
+      post: (id) => ({
+        slides: [
+          {
+            layout: 'stacked',
+            content: [
+              {
+                blockType: 'video',
+                sourceType: 'external',
+                url: 'https://example.com/movie.mp4',
+                poster: id,
+                caption: 'A movie poster',
+              },
+            ],
+          },
+        ],
+      }),
+    },
+    {
+      name: 'download',
+      post: (id) => ({
+        slides: [
+          {
+            layout: 'stacked',
+            content: [{ blockType: 'download', media: id, label: 'Download evidence' }],
+          },
+        ],
+      }),
+    },
+  ]
+  for (const example of cases) {
+    const bytes = example.video ? movie : png
+    const file = await payload.create({
+      collection: 'media',
+      data: { title: example.name, visibility: 'public' },
+      file: {
+        name: `${example.name}.${example.video ? 'webm' : 'png'}`,
+        data: bytes,
+        size: bytes.length,
+        mimetype: example.video ? 'video/webm' : 'image/png',
+      },
+    })
+    const post = await payload.create({
+      collection: 'posts',
+      data: {
+        title: example.name,
+        slug: example.name,
+        summary: 'A reference fixture',
+        ...example.post(file.id),
+        _status: 'published',
+      },
+    })
+    await assert.rejects(
+      payload.update({ collection: 'media', id: file.id, data: { visibility: 'private' } }),
+      /published post/,
+    )
+    await assert.rejects(payload.delete({ collection: 'media', id: file.id }), /published post/)
+    assert((await readFile(path.join(root, 'media', file.filename!))).length > 0)
+    await payload.update({
+      collection: 'posts',
+      id: post.id,
+      draft: false,
+      data: { _status: 'draft' },
+    })
+    assert.equal(
+      (await payload.update({ collection: 'media', id: file.id, data: { visibility: 'private' } }))
+        .visibility,
+      'private',
+    )
+  }
+})
+
+test('published source and snippet dependencies can save newer drafts but cannot unpublish or delete', async () => {
+  for (const [collection, doc] of [
+    ['sources', publicSource],
+    ['snippets', snippet],
+  ] as const) {
+    await assert.rejects(
+      payload.update({ collection, id: doc.id, draft: false, data: { _status: 'draft' } }),
+      /published post/,
+    )
+    await assert.rejects(payload.delete({ collection, id: doc.id }), /published post/)
+    await payload.update({
+      collection,
+      id: doc.id,
+      draft: true,
+      data: { title: 'An unpublished metadata revision', _status: 'draft' },
+    })
+    assert.equal(
+      (await payload.findByID({ collection, id: doc.id, overrideAccess: false }))._status,
+      'published',
+    )
+    await assert.rejects(
+      payload.update({ collection, id: doc.id, draft: false, data: { _status: 'draft' } }),
+      /published post/,
+    )
+  }
+})
+
+test('site logos require public images and protect them until explicitly replaced', async () => {
+  await assert.rejects(
+    payload.updateGlobal({ slug: 'site-settings', data: { logo: privateFile.id } }),
+    /public image/,
+  )
+  await payload.update({ collection: 'media', id: privateFile.id, data: { visibility: 'public' } })
+  await payload.updateGlobal({ slug: 'site-settings', data: { logo: privateFile.id } })
+  await assert.rejects(
+    payload.update({ collection: 'media', id: privateFile.id, data: { visibility: 'private' } }),
+    /site logo/,
+  )
+  await payload.updateGlobal({ slug: 'site-settings', data: { logo: null } })
+  await payload.update({ collection: 'media', id: privateFile.id, data: { visibility: 'private' } })
+})
+
+test('concurrent post publication and media withdrawal cannot both commit', async () => {
+  const bytes = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#557766' } })
+    .png()
+    .toBuffer()
+  const file = await payload.create({
+    collection: 'media',
+    data: { title: 'Race fixture', visibility: 'public' },
+    file: { name: 'race.png', data: bytes, size: bytes.length, mimetype: 'image/png' },
+  })
+  const outcomes = await Promise.allSettled([
+    payload.create({
+      collection: 'posts',
+      data: {
+        title: 'Publishing race',
+        slug: 'publishing-race',
+        summary: 'Concurrent changes',
+        featuredImage: { media: file.id, alt: 'Fixture', caption: 'Concurrent evidence' },
+        _status: 'published',
+      },
+    }),
+    payload.update({ collection: 'media', id: file.id, data: { visibility: 'private' } }),
+  ])
+  assert.equal(outcomes.filter((result) => result.status === 'fulfilled').length, 1)
+  const posts = await payload.find({
+    collection: 'posts',
+    where: { slug: { equals: 'publishing-race' }, _status: { equals: 'published' } },
+  })
+  const media = await payload.findByID({ collection: 'media', id: file.id })
+  assert(!posts.totalDocs || media.visibility === 'public')
 })
 
 test('migration runner is idempotent and refuses a modified applied checksum', async () => {
