@@ -362,7 +362,7 @@ export interface FolderInterface {
   createdAt: string;
 }
 /**
- * Import a ZIP at /bundles/import, or use pnpm snippets:import. Files are immutable; import an update as a new version.
+ * Use Import an interactive ZIP to add a bundle. Each import keeps its original files; import revisions separately, then select the version in your article.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "snippets".
