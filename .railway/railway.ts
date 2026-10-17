@@ -28,7 +28,7 @@ export default defineRailway((ctx) => {
     NODE_ENV: 'production',
     PORT: '8080',
     STORAGE_DRIVER: 's3',
-    DATABASE_URL: postgres.env.DATABASE_URL,
+    DB_HCI_URL: postgres.env.DATABASE_PUBLIC_URL,
     SITE_URL: ctx.shared.HCI_SITE_URL,
     EMBED_ORIGIN: ctx.shared.HCI_EMBED_ORIGIN,
     EMBED_PREVIEW_SECRET: ctx.shared.HCI_EMBED_PREVIEW_SECRET,

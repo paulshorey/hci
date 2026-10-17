@@ -23,7 +23,7 @@ try {
   url.pathname = `/${name}`
   const env = {
     ...process.env,
-    DATABASE_URL: url.href,
+    DB_HCI_URL: url.href,
     STORAGE_DIR: root,
     STORAGE_DRIVER: 'disk',
     ALLOW_PERSISTENT_DISK: 'true',

@@ -43,6 +43,12 @@ test('infrastructure guards exact targets, preserves named resources and isolate
     assert('PAYLOAD_SECRET' in (web.variables || {}))
     assert(!('PAYLOAD_SECRET' in (embeds.variables || {})))
     for (const service of [web, embeds]) {
+      assert.deepEqual(service.variables?.DB_HCI_URL, {
+        type: 'reference',
+        resource: 'database.postgres',
+        output: 'DATABASE_PUBLIC_URL',
+      })
+      assert(!('DATABASE_URL' in (service.variables || {})))
       for (const [variable, output] of Object.entries({
         S3_BUCKET: 'BUCKET',
         S3_ENDPOINT: 'ENDPOINT',

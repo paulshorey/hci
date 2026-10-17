@@ -24,7 +24,7 @@ try {
   target.pathname = `/${name}`
   execFileSync('pnpm', ['db:migrate'], {
     stdio: 'inherit',
-    env: { ...process.env, DATABASE_URL: target.href },
+    env: { ...process.env, DB_HCI_URL: target.href },
   })
   const snapshot = schemaSnapshot(target.href)
   const digest = (value: string) => createHash('sha256').update(value).digest('hex')
@@ -35,7 +35,7 @@ try {
   )
   execFileSync('pnpm', ['exec', 'tsx', 'scripts/verify-payload-schema.ts'], {
     stdio: 'inherit',
-    env: { ...process.env, DATABASE_URL: target.href },
+    env: { ...process.env, DB_HCI_URL: target.href },
   })
   execFileSync('pnpm', ['generate:types'], { stdio: 'inherit' })
   execFileSync('git', ['diff', '--exit-code', '--', 'src/generated'], { stdio: 'inherit' })

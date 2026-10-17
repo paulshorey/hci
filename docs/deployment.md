@@ -12,7 +12,7 @@ Selected on 2026-10-17. Resource IDs are configuration, not credentials. Native 
 | Bucket placement           | `iad` (Virginia), immutable; separate instance and credentials per environment |
 | Compute/database placement | `us-east4-eqdc4a` (Virginia)                                                   |
 | Application services       | `web` (Next.js/Payload) and `embeds` (isolated read-only bundles), port 8080   |
-| Database                   | Managed PostgreSQL 17; private networking; forward-only migrations             |
+| Database                   | Managed PostgreSQL 17; public TCP proxy; forward-only migrations               |
 
 | Environment | Web and CMS                                                                          | Isolated embeds                                                              | Automatic source |
 | ----------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- | ---------------- |
@@ -27,6 +27,14 @@ Service IDs are shared across environments; instances, databases, volumes, bucke
 - Assets bucket definition: `a37e9531-c9b5-4af4-9f44-b26b66e9363d`, with separate `iad` instances per environment.
 
 The user authorized a fresh Git history. The complete codebase was published as one initial commit on `main`, then `prod` was created from it. Subsequent deployment changes are ordinary commits on those branches. Earlier feature branches and the old local Git metadata were removed; closed historical GitHub PR records can still exist.
+
+## Database connection contract
+
+Both `web` and `embeds` require `DB_HCI_URL`, set by the full IaC graph to the native reference `${{postgres.DATABASE_PUBLIC_URL}}` in their own environment. Runtime, migrations and administrative database tools all use this project-specific key; they never fall back to a global `DATABASE_URL`. The managed PostgreSQL service retains Railway's own `DATABASE_URL` and `DATABASE_PUBLIC_URL` outputs.
+
+Public access is intentional for this project. Dev uses `altaria.proxy.rlwy.net:43203`; production uses `switchyard.proxy.rlwy.net:24607`. Each TCP proxy forwards to PostgreSQL port 5432. The current SDK's database helper does not create an active proxy, so these endpoints were created with the native `railway tcp-proxy create --port 5432` command against each exact PostgreSQL environment instance. Preserve them and verify `railway tcp-proxy list` before attempting any creation. Never recreate a database to enable public access.
+
+For a local command against a deployed database, obtain that environment's resolved `DB_HCI_URL` from Railway and pass it only to the intended process, or place it in ignored local configuration. Do not commit or log connection strings. The local `.env.example` and CI use local disposable PostgreSQL databases; `HCI_TEST_DATABASE_URL` remains the separate local-only test target. Switching deployed services to private networking is a future, deliberate IaC change.
 
 ## Credentials and first administrator
 

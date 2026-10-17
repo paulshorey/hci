@@ -8,6 +8,8 @@ Posts own ordered slides; each slide owns ordered, typed content blocks. Images,
 
 Requirements: Node 24, pnpm 10.28.1, and PostgreSQL 17 (Docker Compose is provided).
 
+When upgrading an existing checkout, rename the `DATABASE_URL` key in your ignored `.env` to `DB_HCI_URL`, keeping its existing connection string, before running the commands below. `setup:local` preserves existing `.env` files and does not rename old settings automatically. If `DB_HCI_URL` already exists, keep its intended HCI connection and remove the obsolete project-local `DATABASE_URL` entry.
+
 ```sh
 pnpm install --frozen-lockfile
 pnpm setup:local
@@ -25,7 +27,7 @@ pnpm embeds:dev
 
 Open [the blog](http://localhost:4500) and [Payload](http://localhost:4500/admin). Create your own first admin account in Payload. The seed creates no accounts or default passwords. The embed server listens on port 4501 and must use a different origin from the application.
 
-`setup:local` creates an ignored `.env` with random authentication and preview secrets. It preserves an existing file. For a native PostgreSQL installation, create local `hci` and `hci_test` databases and adjust the ignored connection URLs. Application tables are created entirely by migrations.
+`setup:local` creates an ignored `.env` with random authentication and preview secrets. It preserves an existing file. For a native PostgreSQL installation, create local `hci` and `hci_test` databases and adjust the ignored connection URLs. The application, embed service and database tools require `DB_HCI_URL`; a generic global `DATABASE_URL` is ignored. Local development and CI use their own local PostgreSQL URL. Application tables are created entirely by migrations.
 
 The seed includes three clearly labeled illustrative articles, generated interface diagrams, a small video, a download, and an interactive experiment. These demonstrate the content model and make no claims about measured usability. Existing sample posts are preserved on subsequent runs.
 
