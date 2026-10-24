@@ -79,7 +79,11 @@ export async function rejectPublishedReferences(
     const list = result.docs.find((list) => references(list, kind, id))
     if (list)
       throw new APIError(
-        `This item is used by published or saved content “${list.title || 'Content'}”. Remove the reference or unpublish its entries first.`,
+        `This item is used by published or saved content “${list.title || 'Content'}”. ${
+          includeHistory
+            ? 'Saved content is retained for entry history. Create a new library item instead of deleting or replacing this one.'
+            : 'Remove the reference or unpublish its entries first.'
+        }`,
         400,
       )
     if (!result.hasNextPage) break

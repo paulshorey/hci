@@ -436,6 +436,7 @@ test('published references protect files even if a newer draft removes them', as
   await assert.rejects(payload.delete({ collection: 'media', id: file.id }), /published/)
   await payload.update({ collection: 'entries', id: doc.id, data: { _status: 'draft' } })
   await payload.update({ collection: 'media', id: file.id, data: { visibility: 'private' } })
+  await assert.rejects(payload.delete({ collection: 'media', id: file.id }), /entry history/)
   assert.equal(
     (await payload.findByID({ collection: 'content-lists', id: primary.id })).public,
     false,
