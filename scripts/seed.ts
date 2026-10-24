@@ -60,22 +60,41 @@ try {
       })
     ).totalDocs
   ) {
-    console.log('Sample entries already exist; preserved them.')
+    console.log('Primary sample entry already exists; preserved it.')
   } else {
-    const topic = await payload.create({
-      collection: 'topics',
-      data: { title: 'Interaction studies', slug: 'interaction-studies' },
-    })
-    const source = await payload.create({
-      collection: 'sources',
-      data: {
-        title: 'Understanding target size',
-        url: 'https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html',
-        publisher: 'W3C',
-        accessedAt: new Date().toISOString(),
-        _status: 'published',
-      },
-    })
+    const topic =
+      (
+        await payload.find({
+          collection: 'topics',
+          where: { slug: { equals: 'interaction-studies' } },
+          limit: 1,
+        })
+      ).docs[0] ||
+      (await payload.create({
+        collection: 'topics',
+        data: { title: 'Interaction studies', slug: 'interaction-studies' },
+      }))
+    const source =
+      (
+        await payload.find({
+          collection: 'sources',
+          where: {
+            url: { equals: 'https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html' },
+            _status: { equals: 'published' },
+          },
+          limit: 1,
+        })
+      ).docs[0] ||
+      (await payload.create({
+        collection: 'sources',
+        data: {
+          title: 'Understanding target size',
+          url: 'https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html',
+          publisher: 'W3C',
+          accessedAt: new Date().toISOString(),
+          _status: 'published',
+        },
+      }))
     const media = []
     for (const [index, wide] of [false, true].entries()) {
       const bytes = await illustration(wide)
@@ -253,44 +272,54 @@ try {
         _status: 'published',
       },
     })
-    for (const [title, slug] of [
-      ['A clearer signal', 'a-clearer-signal'],
-      ['Room to think', 'room-to-think'],
-    ]) {
-      const list = await payload.create({
-        collection: 'content-lists',
-        data: newListData({
-          items: [
-            {
-              layout: 'stacked',
-              content: [
-                {
-                  blockType: 'richText',
-                  body: richText(
-                    'A simple article uses exactly the same content model as a multimedia study.',
-                  ),
-                },
-              ],
-            },
-          ],
-        }),
-      })
-      await payload.create({
-        collection: 'entries',
-        data: {
-          visibility: 'public',
-          title,
-          slug,
-          summary: 'An illustrative entry in a reusable multimedia CMS.',
-          contentLists: [list.id],
-          _status: 'published',
-        },
-      })
-    }
-    console.log(
-      'Created three illustrative entries with media, interactive content and multiple related lists. No accounts were created.',
-    )
   }
+  for (const [title, slug] of [
+    ['A clearer signal', 'a-clearer-signal'],
+    ['Room to think', 'room-to-think'],
+  ]) {
+    if (
+      (
+        await payload.find({
+          collection: 'entries',
+          where: { slug: { equals: slug } },
+          limit: 1,
+        })
+      ).totalDocs
+    )
+      continue
+    const list = await payload.create({
+      collection: 'content-lists',
+      data: newListData({
+        items: [
+          {
+            layout: 'stacked',
+            content: [
+              {
+                blockType: 'richText',
+                body: richText(
+                  'A simple article uses exactly the same content model as a multimedia study.',
+                ),
+              },
+            ],
+          },
+        ],
+      }),
+    })
+    await payload.create({
+      collection: 'entries',
+      data: {
+        visibility: 'public',
+        title,
+        slug,
+        summary: 'An illustrative entry in a reusable multimedia CMS.',
+        contentLists: [list.id],
+        _status: 'published',
+      },
+    })
+  }
+  console.log(
+    'Sample entries are ready; existing entries were preserved. No accounts were created.',
+  )
 } finally {
   await payload.destroy()
 }
