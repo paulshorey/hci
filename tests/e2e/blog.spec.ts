@@ -1,13 +1,16 @@
 import { expect, test, type Page } from '@playwright/test'
 
-async function login(page: Page) {
+async function login(page: Page, role: 'admin' | 'editor' = 'admin') {
+  const email = role === 'editor' ? process.env.HCI_E2E_EDITOR_EMAIL! : process.env.HCI_E2E_EMAIL!
+  const password =
+    role === 'editor' ? process.env.HCI_E2E_EDITOR_PASSWORD! : process.env.HCI_E2E_PASSWORD!
   await page.goto('/admin/login')
-  await page.getByLabel('Email').fill(process.env.HCI_E2E_EMAIL!)
-  await page.getByLabel('Password', { exact: true }).fill(process.env.HCI_E2E_PASSWORD!)
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Login' }).click()
   await expect(page).not.toHaveURL(/\/login/)
   await page.request.get('/api/users/me').then(async (response) => {
-    expect((await response.json()).user?.email).toBe(process.env.HCI_E2E_EMAIL)
+    expect((await response.json()).user?.email).toBe(email)
   })
 }
 const entryData = (slug: string) => ({
@@ -86,7 +89,7 @@ test('required primary content can be empty and supplemental relations are optio
 test('the editor shows primary content as standard and adds optional lists through a content drawer', async ({
   page,
 }) => {
-  await login(page)
+  await login(page, 'editor')
   const response = await page.request.post('/api/entries?draft=true', {
     data: { title: 'Editor workflow', slug: 'editor-workflow' },
   })
@@ -154,7 +157,7 @@ test('an editor can create and publish an empty-primary entry entirely through t
   page,
   request,
 }) => {
-  await login(page)
+  await login(page, 'editor')
   await page.goto('/admin/collections/entries/create')
   await expect(page.getByText('Primary content', { exact: true })).toBeVisible()
   await page.locator('input[name="title"]').fill('Created in the admin')
@@ -171,4 +174,16 @@ test('an editor can create and publish an empty-primary entry entirely through t
     .toEqual([])
   await page.goto('/posts/created-in-admin')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Created in the admin')
+})
+
+test('administrators can inspect scheduled jobs while editors cannot read job data', async ({
+  page,
+}) => {
+  await login(page, 'editor')
+  expect((await page.request.get('/api/payload-jobs')).status()).toBe(403)
+  await page.context().clearCookies()
+  await login(page)
+  expect((await page.request.get('/api/payload-jobs')).status()).toBe(200)
+  await page.goto('/admin/collections/payload-jobs')
+  await expect(page.getByRole('heading', { level: 1, name: 'Jobs' })).toBeVisible()
 })

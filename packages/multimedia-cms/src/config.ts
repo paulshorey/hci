@@ -119,6 +119,14 @@ export function createMultimediaCMS(options: {
       ),
     }),
     jobs: {
+      jobsCollectionOverrides: ({ defaultJobsCollection }) => ({
+        ...defaultJobsCollection,
+        admin: {
+          ...defaultJobsCollection.admin,
+          hidden: ({ user }) => user?.role !== 'admin',
+        },
+        access: { ...defaultJobsCollection.access, read: admin },
+      }),
       access: {
         run: ({ req }) => req.user?.role === 'admin',
         queue: ({ req }) => Boolean(req.user),

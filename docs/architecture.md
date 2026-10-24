@@ -30,7 +30,7 @@ A content list's `public` flag is derived solely from current public/published e
 
 Entry saves and dependency withdrawal share a PostgreSQL transaction advisory lock. Publishing a public entry validates referenced media visibility, file types, captions, alt text, sources and bundles. Empty content stays valid. Private published entries may retain private files. Media bytes cannot be replaced or deleted while referenced by a saved list; public media cannot be privatized while used by a public list. Source/bundle withdrawal protects live public references; deletion also protects sealed-list history. Site logos and published source attachments retain their library safeguards.
 
-Users retain admin/editor roles. The first-user operation is serialized and assigns the administrator role on the server. Additional account creation requires an acting administrator. Jobs use Payload's native scheduled-publish task, which restores the scheduling user's current identity and re-enters entry access control and publishing hooks. Persistent Railway web instances run queued jobs every minute when `CMS_RUN_JOBS=true`; local tests run jobs explicitly.
+Users retain admin/editor roles. The first-user operation is serialized and assigns the administrator role on the server. Additional account creation requires an acting administrator. Jobs use Payload's native scheduled-publish task, which restores the scheduling user's current identity and re-enters entry access control and publishing hooks. Persistent Railway web instances run queued jobs every minute when `CMS_RUN_JOBS=true`; local tests run jobs explicitly. Administrators can inspect the read-only Jobs collection; editors and anonymous requests cannot read job inputs or logs.
 
 ## Files and executable bundles
 

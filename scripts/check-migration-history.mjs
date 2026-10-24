@@ -12,7 +12,16 @@ const changed = execFileSync(
   .trim()
   .split('\n')
   .filter(Boolean)
-const reset = JSON.parse(readFileSync('schema/baseline-reset.json', 'utf8'))
+// This exact content is the one-time exception authorized for the discarded
+// baseline. A PR cannot extend its own deletion allowlist by editing the JSON.
+const resetBytes = readFileSync('schema/baseline-reset.json')
+const resetBlob = execFileSync('git', ['hash-object', '--stdin'], {
+  input: resetBytes,
+  encoding: 'utf8',
+}).trim()
+if (resetBlob !== '0bbd9776846a79d18694408f04f0e34a9c293a50')
+  throw new Error('The authorized experimental reset manifest is immutable.')
+const reset = JSON.parse(resetBytes.toString('utf8'))
 const immutable = changed.filter((line) => {
   if (line.endsWith('/index.ts')) return false
   const [status, path] = line.split('\t')

@@ -38,7 +38,7 @@ The old experimental blog schema is intentionally incompatible. Existing install
 4. Upload reusable files in **Media**. Organize them with folders; folder changes do not move storage objects. Images, browser-ready video, audio, documents, datasets and downloadable ZIPs are supported. Keep files private until public delivery is intended.
 5. Add captions, image descriptions and optional source relationships to placements. Publish referenced sources and interactive bundles and make files public before publishing a public entry. No block or media type is mandatory.
 6. Save drafts and use Preview. Drafts, scheduled releases and restored entry versions point to their exact content-list revisions. **Public website** and **Editorial team only** control entry delivery independently from draft/published status.
-7. Use Payload's publishing controls to schedule publishing or unpublishing. Railway's persistent web service runs the native job queue every minute with `CMS_RUN_JOBS=true`; failures remain visible in Payload's jobs collection and publishing still enforces access and asset validation.
+7. Use Payload's publishing controls to schedule publishing or unpublishing. Railway's persistent web service runs the native job queue every minute with `CMS_RUN_JOBS=true`; administrators can inspect failures in Payload's read-only Jobs collection and publishing still enforces access and asset validation.
 
 Creating additional accounts, deleting library records and changing site settings require an administrator. Editors can write and publish content. CMS account identities and source research notes stay out of anonymous responses.
 

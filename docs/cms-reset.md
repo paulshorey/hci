@@ -2,7 +2,7 @@
 
 The owner explicitly authorized discarding the unused blog schema and experimental data on 2026-10-24. This is a one-time transition to the multimedia CMS baseline, not a recurring migration strategy. Do not run native migration reset/down or enable schema push.
 
-The old blog migration files are removed. The new migration creates entries, separate content lists, typed item blocks, jobs and the retained media/source/bundle/auth structures from an empty application schema. `scripts/check-migration-history.mjs` permits deleting only the exact old Git blobs recorded in `schema/baseline-reset.json`; new migrations remain immutable.
+The old blog migration files are removed. The new migration creates entries, separate content lists, typed item blocks, jobs and the retained media/source/bundle/auth structures from an empty application schema. `scripts/check-migration-history.mjs` permits deleting only the exact old Git blobs recorded in `schema/baseline-reset.json`; the manifest content is pinned in the guard so it cannot be expanded by a later PR. New migrations remain immutable.
 
 ## Before resetting
 

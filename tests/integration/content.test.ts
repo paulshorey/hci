@@ -516,6 +516,13 @@ test('scheduled publishing and unpublishing use entry permissions and list publi
     },
     waitUntil: new Date(Date.now() - 1000),
   })
+  const queued = await payload.find({
+    collection: 'payload-jobs',
+    overrideAccess: false,
+    user: owner,
+  })
+  assert(queued.docs.length > 0)
+  await assert.rejects(payload.find({ collection: 'payload-jobs', overrideAccess: false }))
   await payload.jobs.run({ limit: 10 })
   assert.equal(
     (await payload.findByID({ collection: 'entries', id: doc.id, overrideAccess: false }))._status,
