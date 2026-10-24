@@ -7,7 +7,7 @@ export default defineConfig([
   ...nextTs,
   globalIgnores([
     '.next/**',
-    'src/generated/**',
+    'packages/*/src/generated/**',
     'src/migrations/**',
     'storage/**',
     '.local/**',

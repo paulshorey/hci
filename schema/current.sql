@@ -14,24 +14,14 @@ CREATE SCHEMA public;
 
 COMMENT ON SCHEMA public IS 'standard public schema';
 
-CREATE TYPE public.enum__posts_v_blocks_video_source_type AS ENUM (
-    'upload',
-    'external'
-);
-
-CREATE TYPE public.enum__posts_v_version_featured_video_source_type AS ENUM (
-    'upload',
-    'external'
-);
-
-CREATE TYPE public.enum__posts_v_version_slides_layout AS ENUM (
-    'stacked',
-    'comparison'
-);
-
-CREATE TYPE public.enum__posts_v_version_status AS ENUM (
+CREATE TYPE public.enum__entries_v_version_status AS ENUM (
     'draft',
     'published'
+);
+
+CREATE TYPE public.enum__entries_v_version_visibility AS ENUM (
+    'public',
+    'private'
 );
 
 CREATE TYPE public.enum__snippets_v_version_status AS ENUM (
@@ -44,6 +34,33 @@ CREATE TYPE public.enum__sources_v_version_status AS ENUM (
     'published'
 );
 
+CREATE TYPE public.enum_content_lists_blocks_video_source_type AS ENUM (
+    'upload',
+    'external'
+);
+
+CREATE TYPE public.enum_content_lists_items_layout AS ENUM (
+    'stacked',
+    'comparison'
+);
+
+CREATE TYPE public.enum_content_lists_presentation AS ENUM (
+    'flow',
+    'carousel',
+    'list',
+    'grid'
+);
+
+CREATE TYPE public.enum_entries_status AS ENUM (
+    'draft',
+    'published'
+);
+
+CREATE TYPE public.enum_entries_visibility AS ENUM (
+    'public',
+    'private'
+);
+
 CREATE TYPE public.enum_media_visibility AS ENUM (
     'private',
     'public'
@@ -53,24 +70,19 @@ CREATE TYPE public.enum_payload_folders_folder_type AS ENUM (
     'media'
 );
 
-CREATE TYPE public.enum_posts_blocks_video_source_type AS ENUM (
-    'upload',
-    'external'
+CREATE TYPE public.enum_payload_jobs_log_state AS ENUM (
+    'failed',
+    'succeeded'
 );
 
-CREATE TYPE public.enum_posts_featured_video_source_type AS ENUM (
-    'upload',
-    'external'
+CREATE TYPE public.enum_payload_jobs_log_task_slug AS ENUM (
+    'inline',
+    'schedulePublish'
 );
 
-CREATE TYPE public.enum_posts_slides_layout AS ENUM (
-    'stacked',
-    'comparison'
-);
-
-CREATE TYPE public.enum_posts_status AS ENUM (
-    'draft',
-    'published'
+CREATE TYPE public.enum_payload_jobs_task_slug AS ENUM (
+    'inline',
+    'schedulePublish'
 );
 
 CREATE TYPE public.enum_snippets_status AS ENUM (
@@ -92,56 +104,29 @@ SET default_tablespace = '';
 
 SET default_table_access_method = heap;
 
-CREATE TABLE public._posts_v (
+CREATE TABLE public._entries_v (
     id integer NOT NULL,
     parent_id integer,
     version_title character varying,
     version_slug character varying,
     version_summary character varying,
-    version_body jsonb,
+    version_visibility public.enum__entries_v_version_visibility DEFAULT 'public'::public.enum__entries_v_version_visibility,
+    version_kind character varying DEFAULT 'article'::character varying,
     version_author_id integer,
     version_byline character varying,
     version_published_at timestamp(3) with time zone,
-    version_featured_image_media_id integer,
-    version_featured_image_alt character varying,
-    version_featured_image_caption character varying,
-    version_featured_image_source_id integer,
-    version_featured_video_source_type public.enum__posts_v_version_featured_video_source_type DEFAULT 'upload'::public.enum__posts_v_version_featured_video_source_type,
-    version_featured_video_media_id integer,
-    version_featured_video_url character varying,
-    version_featured_video_poster_id integer,
-    version_featured_video_transcript character varying,
-    version_featured_video_caption character varying,
-    version_featured_video_source_id integer,
-    version_featured_link character varying,
-    version_featured_snippet_id integer,
     version_seo_title character varying,
     version_seo_description character varying,
     version_updated_at timestamp(3) with time zone,
     version_created_at timestamp(3) with time zone,
-    version__status public.enum__posts_v_version_status DEFAULT 'draft'::public.enum__posts_v_version_status,
+    version__status public.enum__entries_v_version_status DEFAULT 'draft'::public.enum__entries_v_version_status,
     created_at timestamp(3) with time zone DEFAULT now() NOT NULL,
     updated_at timestamp(3) with time zone DEFAULT now() NOT NULL,
     latest boolean,
-    autosave boolean,
-    version_featured_snippet_caption character varying,
-    version_featured_snippet_source_id integer
+    autosave boolean
 );
 
-CREATE TABLE public._posts_v_blocks_audio (
-    _order integer NOT NULL,
-    _parent_id integer NOT NULL,
-    _path text NOT NULL,
-    id integer NOT NULL,
-    media_id integer,
-    transcript character varying,
-    caption character varying,
-    source_id integer,
-    _uuid character varying,
-    block_name character varying
-);
-
-CREATE SEQUENCE public._posts_v_blocks_audio_id_seq
+CREATE SEQUENCE public._entries_v_id_seq
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -149,167 +134,19 @@ CREATE SEQUENCE public._posts_v_blocks_audio_id_seq
     NO MAXVALUE
     CACHE 1;
 
-ALTER SEQUENCE public._posts_v_blocks_audio_id_seq OWNED BY public._posts_v_blocks_audio.id;
+ALTER SEQUENCE public._entries_v_id_seq OWNED BY public._entries_v.id;
 
-CREATE TABLE public._posts_v_blocks_download (
-    _order integer NOT NULL,
-    _parent_id integer NOT NULL,
-    _path text NOT NULL,
-    id integer NOT NULL,
-    media_id integer,
-    label character varying,
-    description character varying,
-    source_id integer,
-    _uuid character varying,
-    block_name character varying
-);
-
-CREATE SEQUENCE public._posts_v_blocks_download_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-ALTER SEQUENCE public._posts_v_blocks_download_id_seq OWNED BY public._posts_v_blocks_download.id;
-
-CREATE TABLE public._posts_v_blocks_embed (
-    _order integer NOT NULL,
-    _parent_id integer NOT NULL,
-    _path text NOT NULL,
-    id integer NOT NULL,
-    snippet_id integer,
-    title character varying,
-    height numeric DEFAULT 420,
-    caption character varying,
-    source_id integer,
-    _uuid character varying,
-    block_name character varying
-);
-
-CREATE SEQUENCE public._posts_v_blocks_embed_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-ALTER SEQUENCE public._posts_v_blocks_embed_id_seq OWNED BY public._posts_v_blocks_embed.id;
-
-CREATE TABLE public._posts_v_blocks_image (
-    _order integer NOT NULL,
-    _parent_id integer NOT NULL,
-    _path text NOT NULL,
-    id integer NOT NULL,
-    media_id integer,
-    alt character varying,
-    caption character varying,
-    source_id integer,
-    _uuid character varying,
-    block_name character varying
-);
-
-CREATE SEQUENCE public._posts_v_blocks_image_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-ALTER SEQUENCE public._posts_v_blocks_image_id_seq OWNED BY public._posts_v_blocks_image.id;
-
-CREATE TABLE public._posts_v_blocks_link (
-    _order integer NOT NULL,
-    _parent_id integer NOT NULL,
-    _path text NOT NULL,
-    id integer NOT NULL,
-    url character varying,
-    label character varying,
-    description character varying,
-    source_id integer,
-    _uuid character varying,
-    block_name character varying
-);
-
-CREATE SEQUENCE public._posts_v_blocks_link_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-ALTER SEQUENCE public._posts_v_blocks_link_id_seq OWNED BY public._posts_v_blocks_link.id;
-
-CREATE TABLE public._posts_v_blocks_rich_text (
-    _order integer NOT NULL,
-    _parent_id integer NOT NULL,
-    _path text NOT NULL,
-    id integer NOT NULL,
-    body jsonb,
-    _uuid character varying,
-    block_name character varying
-);
-
-CREATE SEQUENCE public._posts_v_blocks_rich_text_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-ALTER SEQUENCE public._posts_v_blocks_rich_text_id_seq OWNED BY public._posts_v_blocks_rich_text.id;
-
-CREATE TABLE public._posts_v_blocks_video (
-    _order integer NOT NULL,
-    _parent_id integer NOT NULL,
-    _path text NOT NULL,
-    id integer NOT NULL,
-    source_type public.enum__posts_v_blocks_video_source_type DEFAULT 'upload'::public.enum__posts_v_blocks_video_source_type,
-    media_id integer,
-    url character varying,
-    poster_id integer,
-    transcript character varying,
-    caption character varying,
-    source_id integer,
-    _uuid character varying,
-    block_name character varying
-);
-
-CREATE SEQUENCE public._posts_v_blocks_video_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-ALTER SEQUENCE public._posts_v_blocks_video_id_seq OWNED BY public._posts_v_blocks_video.id;
-
-CREATE SEQUENCE public._posts_v_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-ALTER SEQUENCE public._posts_v_id_seq OWNED BY public._posts_v.id;
-
-CREATE TABLE public._posts_v_rels (
+CREATE TABLE public._entries_v_rels (
     id integer NOT NULL,
     "order" integer,
     parent_id integer NOT NULL,
     path character varying NOT NULL,
+    content_lists_id integer,
     topics_id integer,
     sources_id integer
 );
 
-CREATE SEQUENCE public._posts_v_rels_id_seq
+CREATE SEQUENCE public._entries_v_rels_id_seq
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -317,26 +154,7 @@ CREATE SEQUENCE public._posts_v_rels_id_seq
     NO MAXVALUE
     CACHE 1;
 
-ALTER SEQUENCE public._posts_v_rels_id_seq OWNED BY public._posts_v_rels.id;
-
-CREATE TABLE public._posts_v_version_slides (
-    _order integer NOT NULL,
-    _parent_id integer NOT NULL,
-    id integer NOT NULL,
-    title character varying,
-    layout public.enum__posts_v_version_slides_layout DEFAULT 'stacked'::public.enum__posts_v_version_slides_layout,
-    _uuid character varying
-);
-
-CREATE SEQUENCE public._posts_v_version_slides_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-ALTER SEQUENCE public._posts_v_version_slides_id_seq OWNED BY public._posts_v_version_slides.id;
+ALTER SEQUENCE public._entries_v_rels_id_seq OWNED BY public._entries_v_rels.id;
 
 CREATE TABLE public._snippets_v (
     id integer NOT NULL,
@@ -412,10 +230,172 @@ CREATE SEQUENCE public._sources_v_rels_id_seq
 
 ALTER SEQUENCE public._sources_v_rels_id_seq OWNED BY public._sources_v_rels.id;
 
-CREATE TABLE public.hci_migration_checksums (
+CREATE TABLE public.cms_migration_checksums (
     name text NOT NULL,
     checksum text NOT NULL
 );
+
+CREATE TABLE public.content_lists (
+    id integer NOT NULL,
+    title character varying DEFAULT 'Content'::character varying,
+    key character varying NOT NULL,
+    presentation public.enum_content_lists_presentation DEFAULT 'flow'::public.enum_content_lists_presentation NOT NULL,
+    sealed boolean DEFAULT false,
+    public boolean DEFAULT false,
+    updated_at timestamp(3) with time zone DEFAULT now() NOT NULL,
+    created_at timestamp(3) with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.content_lists_blocks_audio (
+    _order integer NOT NULL,
+    _parent_id integer NOT NULL,
+    _path text NOT NULL,
+    id character varying NOT NULL,
+    media_id integer NOT NULL,
+    transcript character varying,
+    caption character varying,
+    source_id integer,
+    block_name character varying
+);
+
+CREATE TABLE public.content_lists_blocks_download (
+    _order integer NOT NULL,
+    _parent_id integer NOT NULL,
+    _path text NOT NULL,
+    id character varying NOT NULL,
+    media_id integer NOT NULL,
+    label character varying NOT NULL,
+    description character varying,
+    source_id integer,
+    block_name character varying
+);
+
+CREATE TABLE public.content_lists_blocks_embed (
+    _order integer NOT NULL,
+    _parent_id integer NOT NULL,
+    _path text NOT NULL,
+    id character varying NOT NULL,
+    snippet_id integer NOT NULL,
+    title character varying NOT NULL,
+    height numeric DEFAULT 420 NOT NULL,
+    caption character varying,
+    source_id integer,
+    block_name character varying
+);
+
+CREATE TABLE public.content_lists_blocks_image (
+    _order integer NOT NULL,
+    _parent_id integer NOT NULL,
+    _path text NOT NULL,
+    id character varying NOT NULL,
+    media_id integer NOT NULL,
+    alt character varying,
+    caption character varying,
+    source_id integer,
+    block_name character varying
+);
+
+CREATE TABLE public.content_lists_blocks_link (
+    _order integer NOT NULL,
+    _parent_id integer NOT NULL,
+    _path text NOT NULL,
+    id character varying NOT NULL,
+    url character varying NOT NULL,
+    label character varying NOT NULL,
+    description character varying,
+    source_id integer,
+    block_name character varying
+);
+
+CREATE TABLE public.content_lists_blocks_rich_text (
+    _order integer NOT NULL,
+    _parent_id integer NOT NULL,
+    _path text NOT NULL,
+    id character varying NOT NULL,
+    body jsonb NOT NULL,
+    block_name character varying
+);
+
+CREATE TABLE public.content_lists_blocks_video (
+    _order integer NOT NULL,
+    _parent_id integer NOT NULL,
+    _path text NOT NULL,
+    id character varying NOT NULL,
+    source_type public.enum_content_lists_blocks_video_source_type DEFAULT 'upload'::public.enum_content_lists_blocks_video_source_type NOT NULL,
+    media_id integer,
+    url character varying,
+    poster_id integer,
+    transcript character varying,
+    caption character varying,
+    source_id integer,
+    block_name character varying
+);
+
+CREATE SEQUENCE public.content_lists_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.content_lists_id_seq OWNED BY public.content_lists.id;
+
+CREATE TABLE public.content_lists_items (
+    _order integer NOT NULL,
+    _parent_id integer NOT NULL,
+    id character varying NOT NULL,
+    key character varying NOT NULL,
+    title character varying,
+    layout public.enum_content_lists_items_layout DEFAULT 'stacked'::public.enum_content_lists_items_layout NOT NULL
+);
+
+CREATE TABLE public.entries (
+    id integer NOT NULL,
+    title character varying,
+    slug character varying,
+    summary character varying,
+    visibility public.enum_entries_visibility DEFAULT 'public'::public.enum_entries_visibility,
+    kind character varying DEFAULT 'article'::character varying,
+    author_id integer,
+    byline character varying,
+    published_at timestamp(3) with time zone,
+    seo_title character varying,
+    seo_description character varying,
+    updated_at timestamp(3) with time zone DEFAULT now() NOT NULL,
+    created_at timestamp(3) with time zone DEFAULT now() NOT NULL,
+    _status public.enum_entries_status DEFAULT 'draft'::public.enum_entries_status
+);
+
+CREATE SEQUENCE public.entries_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.entries_id_seq OWNED BY public.entries.id;
+
+CREATE TABLE public.entries_rels (
+    id integer NOT NULL,
+    "order" integer,
+    parent_id integer NOT NULL,
+    path character varying NOT NULL,
+    content_lists_id integer,
+    topics_id integer,
+    sources_id integer
+);
+
+CREATE SEQUENCE public.entries_rels_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.entries_rels_id_seq OWNED BY public.entries_rels.id;
 
 CREATE TABLE public.media (
     id integer NOT NULL,
@@ -424,6 +404,11 @@ CREATE TABLE public.media (
     visibility public.enum_media_visibility DEFAULT 'private'::public.enum_media_visibility NOT NULL,
     credit character varying,
     source_id integer,
+    credit_u_r_l character varying,
+    license character varying,
+    prefix character varying DEFAULT 'media'::character varying,
+    _objectkey character varying,
+    folder_id integer,
     updated_at timestamp(3) with time zone DEFAULT now() NOT NULL,
     created_at timestamp(3) with time zone DEFAULT now() NOT NULL,
     url character varying,
@@ -440,12 +425,7 @@ CREATE TABLE public.media (
     sizes_card_height numeric,
     sizes_card_mime_type character varying,
     sizes_card_filesize numeric,
-    sizes_card_filename character varying,
-    credit_u_r_l character varying,
-    license character varying,
-    prefix character varying DEFAULT 'media'::character varying,
-    _objectkey character varying,
-    folder_id integer
+    sizes_card_filename character varying
 );
 
 CREATE SEQUENCE public.media_id_seq
@@ -493,6 +473,45 @@ CREATE SEQUENCE public.payload_folders_id_seq
 
 ALTER SEQUENCE public.payload_folders_id_seq OWNED BY public.payload_folders.id;
 
+CREATE TABLE public.payload_jobs (
+    id integer NOT NULL,
+    input jsonb,
+    completed_at timestamp(3) with time zone,
+    total_tried numeric DEFAULT 0,
+    has_error boolean DEFAULT false,
+    error jsonb,
+    task_slug public.enum_payload_jobs_task_slug,
+    queue character varying DEFAULT 'default'::character varying,
+    wait_until timestamp(3) with time zone,
+    processing boolean DEFAULT false,
+    updated_at timestamp(3) with time zone DEFAULT now() NOT NULL,
+    created_at timestamp(3) with time zone DEFAULT now() NOT NULL
+);
+
+CREATE SEQUENCE public.payload_jobs_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.payload_jobs_id_seq OWNED BY public.payload_jobs.id;
+
+CREATE TABLE public.payload_jobs_log (
+    _order integer NOT NULL,
+    _parent_id integer NOT NULL,
+    id character varying NOT NULL,
+    executed_at timestamp(3) with time zone NOT NULL,
+    completed_at timestamp(3) with time zone NOT NULL,
+    task_slug public.enum_payload_jobs_log_task_slug NOT NULL,
+    task_i_d character varying NOT NULL,
+    input jsonb,
+    output jsonb,
+    state public.enum_payload_jobs_log_state NOT NULL,
+    error jsonb
+);
+
 CREATE TABLE public.payload_kv (
     id integer NOT NULL,
     key character varying NOT NULL,
@@ -532,7 +551,8 @@ CREATE TABLE public.payload_locked_documents_rels (
     parent_id integer NOT NULL,
     path character varying NOT NULL,
     users_id integer,
-    posts_id integer,
+    entries_id integer,
+    content_lists_id integer,
     media_id integer,
     sources_id integer,
     topics_id integer,
@@ -604,167 +624,14 @@ CREATE SEQUENCE public.payload_preferences_rels_id_seq
 
 ALTER SEQUENCE public.payload_preferences_rels_id_seq OWNED BY public.payload_preferences_rels.id;
 
-CREATE TABLE public.posts (
-    id integer NOT NULL,
-    title character varying,
-    slug character varying,
-    summary character varying,
-    body jsonb,
-    author_id integer,
-    byline character varying,
-    published_at timestamp(3) with time zone,
-    featured_image_media_id integer,
-    featured_image_alt character varying,
-    featured_image_caption character varying,
-    featured_image_source_id integer,
-    featured_video_source_type public.enum_posts_featured_video_source_type DEFAULT 'upload'::public.enum_posts_featured_video_source_type,
-    featured_video_media_id integer,
-    featured_video_url character varying,
-    featured_video_poster_id integer,
-    featured_video_transcript character varying,
-    featured_video_caption character varying,
-    featured_video_source_id integer,
-    featured_link character varying,
-    featured_snippet_id integer,
-    seo_title character varying,
-    seo_description character varying,
-    updated_at timestamp(3) with time zone DEFAULT now() NOT NULL,
-    created_at timestamp(3) with time zone DEFAULT now() NOT NULL,
-    _status public.enum_posts_status DEFAULT 'draft'::public.enum_posts_status,
-    featured_snippet_caption character varying,
-    featured_snippet_source_id integer
-);
-
-CREATE TABLE public.posts_blocks_audio (
-    _order integer NOT NULL,
-    _parent_id integer NOT NULL,
-    _path text NOT NULL,
-    id character varying NOT NULL,
-    media_id integer,
-    transcript character varying,
-    caption character varying,
-    source_id integer,
-    block_name character varying
-);
-
-CREATE TABLE public.posts_blocks_download (
-    _order integer NOT NULL,
-    _parent_id integer NOT NULL,
-    _path text NOT NULL,
-    id character varying NOT NULL,
-    media_id integer,
-    label character varying,
-    description character varying,
-    source_id integer,
-    block_name character varying
-);
-
-CREATE TABLE public.posts_blocks_embed (
-    _order integer NOT NULL,
-    _parent_id integer NOT NULL,
-    _path text NOT NULL,
-    id character varying NOT NULL,
-    snippet_id integer,
-    title character varying,
-    height numeric DEFAULT 420,
-    caption character varying,
-    source_id integer,
-    block_name character varying
-);
-
-CREATE TABLE public.posts_blocks_image (
-    _order integer NOT NULL,
-    _parent_id integer NOT NULL,
-    _path text NOT NULL,
-    id character varying NOT NULL,
-    media_id integer,
-    alt character varying,
-    caption character varying,
-    source_id integer,
-    block_name character varying
-);
-
-CREATE TABLE public.posts_blocks_link (
-    _order integer NOT NULL,
-    _parent_id integer NOT NULL,
-    _path text NOT NULL,
-    id character varying NOT NULL,
-    url character varying,
-    label character varying,
-    description character varying,
-    source_id integer,
-    block_name character varying
-);
-
-CREATE TABLE public.posts_blocks_rich_text (
-    _order integer NOT NULL,
-    _parent_id integer NOT NULL,
-    _path text NOT NULL,
-    id character varying NOT NULL,
-    body jsonb,
-    block_name character varying
-);
-
-CREATE TABLE public.posts_blocks_video (
-    _order integer NOT NULL,
-    _parent_id integer NOT NULL,
-    _path text NOT NULL,
-    id character varying NOT NULL,
-    source_type public.enum_posts_blocks_video_source_type DEFAULT 'upload'::public.enum_posts_blocks_video_source_type,
-    media_id integer,
-    url character varying,
-    poster_id integer,
-    transcript character varying,
-    caption character varying,
-    source_id integer,
-    block_name character varying
-);
-
-CREATE SEQUENCE public.posts_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-ALTER SEQUENCE public.posts_id_seq OWNED BY public.posts.id;
-
-CREATE TABLE public.posts_rels (
-    id integer NOT NULL,
-    "order" integer,
-    parent_id integer NOT NULL,
-    path character varying NOT NULL,
-    topics_id integer,
-    sources_id integer
-);
-
-CREATE SEQUENCE public.posts_rels_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-ALTER SEQUENCE public.posts_rels_id_seq OWNED BY public.posts_rels.id;
-
-CREATE TABLE public.posts_slides (
-    _order integer NOT NULL,
-    _parent_id integer NOT NULL,
-    id character varying NOT NULL,
-    title character varying,
-    layout public.enum_posts_slides_layout DEFAULT 'stacked'::public.enum_posts_slides_layout
-);
-
 CREATE TABLE public.site_settings (
     id integer NOT NULL,
     title character varying DEFAULT 'Human / Computer'::character varying NOT NULL,
-    description character varying DEFAULT 'A field journal of interfaces, interactions, and the evidence behind them.'::character varying,
+    description character varying DEFAULT 'A multimedia publishing site.'::character varying,
     logo_id integer,
+    time_zone character varying DEFAULT 'America/Chicago'::character varying NOT NULL,
     updated_at timestamp(3) with time zone,
-    created_at timestamp(3) with time zone,
-    time_zone character varying DEFAULT 'America/Chicago'::character varying NOT NULL
+    created_at timestamp(3) with time zone
 );
 
 CREATE SEQUENCE public.site_settings_id_seq
@@ -904,25 +771,9 @@ CREATE TABLE public.users_sessions (
     expires_at timestamp(3) with time zone NOT NULL
 );
 
-ALTER TABLE ONLY public._posts_v ALTER COLUMN id SET DEFAULT nextval('public._posts_v_id_seq'::regclass);
+ALTER TABLE ONLY public._entries_v ALTER COLUMN id SET DEFAULT nextval('public._entries_v_id_seq'::regclass);
 
-ALTER TABLE ONLY public._posts_v_blocks_audio ALTER COLUMN id SET DEFAULT nextval('public._posts_v_blocks_audio_id_seq'::regclass);
-
-ALTER TABLE ONLY public._posts_v_blocks_download ALTER COLUMN id SET DEFAULT nextval('public._posts_v_blocks_download_id_seq'::regclass);
-
-ALTER TABLE ONLY public._posts_v_blocks_embed ALTER COLUMN id SET DEFAULT nextval('public._posts_v_blocks_embed_id_seq'::regclass);
-
-ALTER TABLE ONLY public._posts_v_blocks_image ALTER COLUMN id SET DEFAULT nextval('public._posts_v_blocks_image_id_seq'::regclass);
-
-ALTER TABLE ONLY public._posts_v_blocks_link ALTER COLUMN id SET DEFAULT nextval('public._posts_v_blocks_link_id_seq'::regclass);
-
-ALTER TABLE ONLY public._posts_v_blocks_rich_text ALTER COLUMN id SET DEFAULT nextval('public._posts_v_blocks_rich_text_id_seq'::regclass);
-
-ALTER TABLE ONLY public._posts_v_blocks_video ALTER COLUMN id SET DEFAULT nextval('public._posts_v_blocks_video_id_seq'::regclass);
-
-ALTER TABLE ONLY public._posts_v_rels ALTER COLUMN id SET DEFAULT nextval('public._posts_v_rels_id_seq'::regclass);
-
-ALTER TABLE ONLY public._posts_v_version_slides ALTER COLUMN id SET DEFAULT nextval('public._posts_v_version_slides_id_seq'::regclass);
+ALTER TABLE ONLY public._entries_v_rels ALTER COLUMN id SET DEFAULT nextval('public._entries_v_rels_id_seq'::regclass);
 
 ALTER TABLE ONLY public._snippets_v ALTER COLUMN id SET DEFAULT nextval('public._snippets_v_id_seq'::regclass);
 
@@ -930,11 +781,19 @@ ALTER TABLE ONLY public._sources_v ALTER COLUMN id SET DEFAULT nextval('public._
 
 ALTER TABLE ONLY public._sources_v_rels ALTER COLUMN id SET DEFAULT nextval('public._sources_v_rels_id_seq'::regclass);
 
+ALTER TABLE ONLY public.content_lists ALTER COLUMN id SET DEFAULT nextval('public.content_lists_id_seq'::regclass);
+
+ALTER TABLE ONLY public.entries ALTER COLUMN id SET DEFAULT nextval('public.entries_id_seq'::regclass);
+
+ALTER TABLE ONLY public.entries_rels ALTER COLUMN id SET DEFAULT nextval('public.entries_rels_id_seq'::regclass);
+
 ALTER TABLE ONLY public.media ALTER COLUMN id SET DEFAULT nextval('public.media_id_seq'::regclass);
 
 ALTER TABLE ONLY public.payload_folders ALTER COLUMN id SET DEFAULT nextval('public.payload_folders_id_seq'::regclass);
 
 ALTER TABLE ONLY public.payload_folders_folder_type ALTER COLUMN id SET DEFAULT nextval('public.payload_folders_folder_type_id_seq'::regclass);
+
+ALTER TABLE ONLY public.payload_jobs ALTER COLUMN id SET DEFAULT nextval('public.payload_jobs_id_seq'::regclass);
 
 ALTER TABLE ONLY public.payload_kv ALTER COLUMN id SET DEFAULT nextval('public.payload_kv_id_seq'::regclass);
 
@@ -948,10 +807,6 @@ ALTER TABLE ONLY public.payload_preferences ALTER COLUMN id SET DEFAULT nextval(
 
 ALTER TABLE ONLY public.payload_preferences_rels ALTER COLUMN id SET DEFAULT nextval('public.payload_preferences_rels_id_seq'::regclass);
 
-ALTER TABLE ONLY public.posts ALTER COLUMN id SET DEFAULT nextval('public.posts_id_seq'::regclass);
-
-ALTER TABLE ONLY public.posts_rels ALTER COLUMN id SET DEFAULT nextval('public.posts_rels_id_seq'::regclass);
-
 ALTER TABLE ONLY public.site_settings ALTER COLUMN id SET DEFAULT nextval('public.site_settings_id_seq'::regclass);
 
 ALTER TABLE ONLY public.snippets ALTER COLUMN id SET DEFAULT nextval('public.snippets_id_seq'::regclass);
@@ -964,35 +819,11 @@ ALTER TABLE ONLY public.topics ALTER COLUMN id SET DEFAULT nextval('public.topic
 
 ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
 
-ALTER TABLE ONLY public._posts_v_blocks_audio
-    ADD CONSTRAINT _posts_v_blocks_audio_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public._entries_v
+    ADD CONSTRAINT _entries_v_pkey PRIMARY KEY (id);
 
-ALTER TABLE ONLY public._posts_v_blocks_download
-    ADD CONSTRAINT _posts_v_blocks_download_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public._posts_v_blocks_embed
-    ADD CONSTRAINT _posts_v_blocks_embed_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public._posts_v_blocks_image
-    ADD CONSTRAINT _posts_v_blocks_image_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public._posts_v_blocks_link
-    ADD CONSTRAINT _posts_v_blocks_link_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public._posts_v_blocks_rich_text
-    ADD CONSTRAINT _posts_v_blocks_rich_text_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public._posts_v_blocks_video
-    ADD CONSTRAINT _posts_v_blocks_video_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public._posts_v
-    ADD CONSTRAINT _posts_v_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public._posts_v_rels
-    ADD CONSTRAINT _posts_v_rels_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public._posts_v_version_slides
-    ADD CONSTRAINT _posts_v_version_slides_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public._entries_v_rels
+    ADD CONSTRAINT _entries_v_rels_pkey PRIMARY KEY (id);
 
 ALTER TABLE ONLY public._snippets_v
     ADD CONSTRAINT _snippets_v_pkey PRIMARY KEY (id);
@@ -1003,8 +834,41 @@ ALTER TABLE ONLY public._sources_v
 ALTER TABLE ONLY public._sources_v_rels
     ADD CONSTRAINT _sources_v_rels_pkey PRIMARY KEY (id);
 
-ALTER TABLE ONLY public.hci_migration_checksums
-    ADD CONSTRAINT hci_migration_checksums_pkey PRIMARY KEY (name);
+ALTER TABLE ONLY public.cms_migration_checksums
+    ADD CONSTRAINT cms_migration_checksums_pkey PRIMARY KEY (name);
+
+ALTER TABLE ONLY public.content_lists_blocks_audio
+    ADD CONSTRAINT content_lists_blocks_audio_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.content_lists_blocks_download
+    ADD CONSTRAINT content_lists_blocks_download_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.content_lists_blocks_embed
+    ADD CONSTRAINT content_lists_blocks_embed_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.content_lists_blocks_image
+    ADD CONSTRAINT content_lists_blocks_image_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.content_lists_blocks_link
+    ADD CONSTRAINT content_lists_blocks_link_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.content_lists_blocks_rich_text
+    ADD CONSTRAINT content_lists_blocks_rich_text_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.content_lists_blocks_video
+    ADD CONSTRAINT content_lists_blocks_video_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.content_lists_items
+    ADD CONSTRAINT content_lists_items_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.content_lists
+    ADD CONSTRAINT content_lists_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.entries
+    ADD CONSTRAINT entries_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.entries_rels
+    ADD CONSTRAINT entries_rels_pkey PRIMARY KEY (id);
 
 ALTER TABLE ONLY public.media
     ADD CONSTRAINT media_pkey PRIMARY KEY (id);
@@ -1014,6 +878,12 @@ ALTER TABLE ONLY public.payload_folders_folder_type
 
 ALTER TABLE ONLY public.payload_folders
     ADD CONSTRAINT payload_folders_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.payload_jobs_log
+    ADD CONSTRAINT payload_jobs_log_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.payload_jobs
+    ADD CONSTRAINT payload_jobs_pkey PRIMARY KEY (id);
 
 ALTER TABLE ONLY public.payload_kv
     ADD CONSTRAINT payload_kv_pkey PRIMARY KEY (id);
@@ -1032,36 +902,6 @@ ALTER TABLE ONLY public.payload_preferences
 
 ALTER TABLE ONLY public.payload_preferences_rels
     ADD CONSTRAINT payload_preferences_rels_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public.posts_blocks_audio
-    ADD CONSTRAINT posts_blocks_audio_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public.posts_blocks_download
-    ADD CONSTRAINT posts_blocks_download_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public.posts_blocks_embed
-    ADD CONSTRAINT posts_blocks_embed_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public.posts_blocks_image
-    ADD CONSTRAINT posts_blocks_image_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public.posts_blocks_link
-    ADD CONSTRAINT posts_blocks_link_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public.posts_blocks_rich_text
-    ADD CONSTRAINT posts_blocks_rich_text_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public.posts_blocks_video
-    ADD CONSTRAINT posts_blocks_video_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public.posts
-    ADD CONSTRAINT posts_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public.posts_rels
-    ADD CONSTRAINT posts_rels_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public.posts_slides
-    ADD CONSTRAINT posts_slides_pkey PRIMARY KEY (id);
 
 ALTER TABLE ONLY public.site_settings_navigation
     ADD CONSTRAINT site_settings_navigation_pkey PRIMARY KEY (id);
@@ -1087,121 +927,41 @@ ALTER TABLE ONLY public.users
 ALTER TABLE ONLY public.users_sessions
     ADD CONSTRAINT users_sessions_pkey PRIMARY KEY (id);
 
-CREATE INDEX _posts_v_autosave_idx ON public._posts_v USING btree (autosave);
+CREATE INDEX _entries_v_autosave_idx ON public._entries_v USING btree (autosave);
 
-CREATE INDEX _posts_v_blocks_audio_media_idx ON public._posts_v_blocks_audio USING btree (media_id);
+CREATE INDEX _entries_v_created_at_idx ON public._entries_v USING btree (created_at);
 
-CREATE INDEX _posts_v_blocks_audio_order_idx ON public._posts_v_blocks_audio USING btree (_order);
+CREATE INDEX _entries_v_latest_idx ON public._entries_v USING btree (latest);
 
-CREATE INDEX _posts_v_blocks_audio_parent_id_idx ON public._posts_v_blocks_audio USING btree (_parent_id);
+CREATE INDEX _entries_v_parent_idx ON public._entries_v USING btree (parent_id);
 
-CREATE INDEX _posts_v_blocks_audio_path_idx ON public._posts_v_blocks_audio USING btree (_path);
+CREATE INDEX _entries_v_rels_content_lists_id_idx ON public._entries_v_rels USING btree (content_lists_id);
 
-CREATE INDEX _posts_v_blocks_audio_source_idx ON public._posts_v_blocks_audio USING btree (source_id);
+CREATE INDEX _entries_v_rels_order_idx ON public._entries_v_rels USING btree ("order");
 
-CREATE INDEX _posts_v_blocks_download_media_idx ON public._posts_v_blocks_download USING btree (media_id);
+CREATE INDEX _entries_v_rels_parent_idx ON public._entries_v_rels USING btree (parent_id);
 
-CREATE INDEX _posts_v_blocks_download_order_idx ON public._posts_v_blocks_download USING btree (_order);
+CREATE INDEX _entries_v_rels_path_idx ON public._entries_v_rels USING btree (path);
 
-CREATE INDEX _posts_v_blocks_download_parent_id_idx ON public._posts_v_blocks_download USING btree (_parent_id);
+CREATE INDEX _entries_v_rels_sources_id_idx ON public._entries_v_rels USING btree (sources_id);
 
-CREATE INDEX _posts_v_blocks_download_path_idx ON public._posts_v_blocks_download USING btree (_path);
+CREATE INDEX _entries_v_rels_topics_id_idx ON public._entries_v_rels USING btree (topics_id);
 
-CREATE INDEX _posts_v_blocks_download_source_idx ON public._posts_v_blocks_download USING btree (source_id);
+CREATE INDEX _entries_v_updated_at_idx ON public._entries_v USING btree (updated_at);
 
-CREATE INDEX _posts_v_blocks_embed_order_idx ON public._posts_v_blocks_embed USING btree (_order);
+CREATE INDEX _entries_v_version_version__status_idx ON public._entries_v USING btree (version__status);
 
-CREATE INDEX _posts_v_blocks_embed_parent_id_idx ON public._posts_v_blocks_embed USING btree (_parent_id);
+CREATE INDEX _entries_v_version_version_author_idx ON public._entries_v USING btree (version_author_id);
 
-CREATE INDEX _posts_v_blocks_embed_path_idx ON public._posts_v_blocks_embed USING btree (_path);
+CREATE INDEX _entries_v_version_version_created_at_idx ON public._entries_v USING btree (version_created_at);
 
-CREATE INDEX _posts_v_blocks_embed_snippet_idx ON public._posts_v_blocks_embed USING btree (snippet_id);
+CREATE INDEX _entries_v_version_version_kind_idx ON public._entries_v USING btree (version_kind);
 
-CREATE INDEX _posts_v_blocks_embed_source_idx ON public._posts_v_blocks_embed USING btree (source_id);
+CREATE INDEX _entries_v_version_version_published_at_idx ON public._entries_v USING btree (version_published_at);
 
-CREATE INDEX _posts_v_blocks_image_media_idx ON public._posts_v_blocks_image USING btree (media_id);
+CREATE INDEX _entries_v_version_version_slug_idx ON public._entries_v USING btree (version_slug);
 
-CREATE INDEX _posts_v_blocks_image_order_idx ON public._posts_v_blocks_image USING btree (_order);
-
-CREATE INDEX _posts_v_blocks_image_parent_id_idx ON public._posts_v_blocks_image USING btree (_parent_id);
-
-CREATE INDEX _posts_v_blocks_image_path_idx ON public._posts_v_blocks_image USING btree (_path);
-
-CREATE INDEX _posts_v_blocks_image_source_idx ON public._posts_v_blocks_image USING btree (source_id);
-
-CREATE INDEX _posts_v_blocks_link_order_idx ON public._posts_v_blocks_link USING btree (_order);
-
-CREATE INDEX _posts_v_blocks_link_parent_id_idx ON public._posts_v_blocks_link USING btree (_parent_id);
-
-CREATE INDEX _posts_v_blocks_link_path_idx ON public._posts_v_blocks_link USING btree (_path);
-
-CREATE INDEX _posts_v_blocks_link_source_idx ON public._posts_v_blocks_link USING btree (source_id);
-
-CREATE INDEX _posts_v_blocks_rich_text_order_idx ON public._posts_v_blocks_rich_text USING btree (_order);
-
-CREATE INDEX _posts_v_blocks_rich_text_parent_id_idx ON public._posts_v_blocks_rich_text USING btree (_parent_id);
-
-CREATE INDEX _posts_v_blocks_rich_text_path_idx ON public._posts_v_blocks_rich_text USING btree (_path);
-
-CREATE INDEX _posts_v_blocks_video_media_idx ON public._posts_v_blocks_video USING btree (media_id);
-
-CREATE INDEX _posts_v_blocks_video_order_idx ON public._posts_v_blocks_video USING btree (_order);
-
-CREATE INDEX _posts_v_blocks_video_parent_id_idx ON public._posts_v_blocks_video USING btree (_parent_id);
-
-CREATE INDEX _posts_v_blocks_video_path_idx ON public._posts_v_blocks_video USING btree (_path);
-
-CREATE INDEX _posts_v_blocks_video_poster_idx ON public._posts_v_blocks_video USING btree (poster_id);
-
-CREATE INDEX _posts_v_blocks_video_source_idx ON public._posts_v_blocks_video USING btree (source_id);
-
-CREATE INDEX _posts_v_created_at_idx ON public._posts_v USING btree (created_at);
-
-CREATE INDEX _posts_v_latest_idx ON public._posts_v USING btree (latest);
-
-CREATE INDEX _posts_v_parent_idx ON public._posts_v USING btree (parent_id);
-
-CREATE INDEX _posts_v_rels_order_idx ON public._posts_v_rels USING btree ("order");
-
-CREATE INDEX _posts_v_rels_parent_idx ON public._posts_v_rels USING btree (parent_id);
-
-CREATE INDEX _posts_v_rels_path_idx ON public._posts_v_rels USING btree (path);
-
-CREATE INDEX _posts_v_rels_sources_id_idx ON public._posts_v_rels USING btree (sources_id);
-
-CREATE INDEX _posts_v_rels_topics_id_idx ON public._posts_v_rels USING btree (topics_id);
-
-CREATE INDEX _posts_v_updated_at_idx ON public._posts_v USING btree (updated_at);
-
-CREATE INDEX _posts_v_version_featured_image_version_featured_image_m_idx ON public._posts_v USING btree (version_featured_image_media_id);
-
-CREATE INDEX _posts_v_version_featured_image_version_featured_image_s_idx ON public._posts_v USING btree (version_featured_image_source_id);
-
-CREATE INDEX _posts_v_version_featured_video_version_featured_video_m_idx ON public._posts_v USING btree (version_featured_video_media_id);
-
-CREATE INDEX _posts_v_version_featured_video_version_featured_video_p_idx ON public._posts_v USING btree (version_featured_video_poster_id);
-
-CREATE INDEX _posts_v_version_featured_video_version_featured_video_s_idx ON public._posts_v USING btree (version_featured_video_source_id);
-
-CREATE INDEX _posts_v_version_slides_order_idx ON public._posts_v_version_slides USING btree (_order);
-
-CREATE INDEX _posts_v_version_slides_parent_id_idx ON public._posts_v_version_slides USING btree (_parent_id);
-
-CREATE INDEX _posts_v_version_version__status_idx ON public._posts_v USING btree (version__status);
-
-CREATE INDEX _posts_v_version_version_author_idx ON public._posts_v USING btree (version_author_id);
-
-CREATE INDEX _posts_v_version_version_created_at_idx ON public._posts_v USING btree (version_created_at);
-
-CREATE INDEX _posts_v_version_version_featured_snippet_idx ON public._posts_v USING btree (version_featured_snippet_id);
-
-CREATE INDEX _posts_v_version_version_featured_snippet_source_idx ON public._posts_v USING btree (version_featured_snippet_source_id);
-
-CREATE INDEX _posts_v_version_version_published_at_idx ON public._posts_v USING btree (version_published_at);
-
-CREATE INDEX _posts_v_version_version_slug_idx ON public._posts_v USING btree (version_slug);
-
-CREATE INDEX _posts_v_version_version_updated_at_idx ON public._posts_v USING btree (version_updated_at);
+CREATE INDEX _entries_v_version_version_updated_at_idx ON public._entries_v USING btree (version_updated_at);
 
 CREATE INDEX _snippets_v_created_at_idx ON public._snippets_v USING btree (created_at);
 
@@ -1241,6 +1001,108 @@ CREATE INDEX _sources_v_version_version_created_at_idx ON public._sources_v USIN
 
 CREATE INDEX _sources_v_version_version_updated_at_idx ON public._sources_v USING btree (version_updated_at);
 
+CREATE INDEX content_lists_blocks_audio_media_idx ON public.content_lists_blocks_audio USING btree (media_id);
+
+CREATE INDEX content_lists_blocks_audio_order_idx ON public.content_lists_blocks_audio USING btree (_order);
+
+CREATE INDEX content_lists_blocks_audio_parent_id_idx ON public.content_lists_blocks_audio USING btree (_parent_id);
+
+CREATE INDEX content_lists_blocks_audio_path_idx ON public.content_lists_blocks_audio USING btree (_path);
+
+CREATE INDEX content_lists_blocks_audio_source_idx ON public.content_lists_blocks_audio USING btree (source_id);
+
+CREATE INDEX content_lists_blocks_download_media_idx ON public.content_lists_blocks_download USING btree (media_id);
+
+CREATE INDEX content_lists_blocks_download_order_idx ON public.content_lists_blocks_download USING btree (_order);
+
+CREATE INDEX content_lists_blocks_download_parent_id_idx ON public.content_lists_blocks_download USING btree (_parent_id);
+
+CREATE INDEX content_lists_blocks_download_path_idx ON public.content_lists_blocks_download USING btree (_path);
+
+CREATE INDEX content_lists_blocks_download_source_idx ON public.content_lists_blocks_download USING btree (source_id);
+
+CREATE INDEX content_lists_blocks_embed_order_idx ON public.content_lists_blocks_embed USING btree (_order);
+
+CREATE INDEX content_lists_blocks_embed_parent_id_idx ON public.content_lists_blocks_embed USING btree (_parent_id);
+
+CREATE INDEX content_lists_blocks_embed_path_idx ON public.content_lists_blocks_embed USING btree (_path);
+
+CREATE INDEX content_lists_blocks_embed_snippet_idx ON public.content_lists_blocks_embed USING btree (snippet_id);
+
+CREATE INDEX content_lists_blocks_embed_source_idx ON public.content_lists_blocks_embed USING btree (source_id);
+
+CREATE INDEX content_lists_blocks_image_media_idx ON public.content_lists_blocks_image USING btree (media_id);
+
+CREATE INDEX content_lists_blocks_image_order_idx ON public.content_lists_blocks_image USING btree (_order);
+
+CREATE INDEX content_lists_blocks_image_parent_id_idx ON public.content_lists_blocks_image USING btree (_parent_id);
+
+CREATE INDEX content_lists_blocks_image_path_idx ON public.content_lists_blocks_image USING btree (_path);
+
+CREATE INDEX content_lists_blocks_image_source_idx ON public.content_lists_blocks_image USING btree (source_id);
+
+CREATE INDEX content_lists_blocks_link_order_idx ON public.content_lists_blocks_link USING btree (_order);
+
+CREATE INDEX content_lists_blocks_link_parent_id_idx ON public.content_lists_blocks_link USING btree (_parent_id);
+
+CREATE INDEX content_lists_blocks_link_path_idx ON public.content_lists_blocks_link USING btree (_path);
+
+CREATE INDEX content_lists_blocks_link_source_idx ON public.content_lists_blocks_link USING btree (source_id);
+
+CREATE INDEX content_lists_blocks_rich_text_order_idx ON public.content_lists_blocks_rich_text USING btree (_order);
+
+CREATE INDEX content_lists_blocks_rich_text_parent_id_idx ON public.content_lists_blocks_rich_text USING btree (_parent_id);
+
+CREATE INDEX content_lists_blocks_rich_text_path_idx ON public.content_lists_blocks_rich_text USING btree (_path);
+
+CREATE INDEX content_lists_blocks_video_media_idx ON public.content_lists_blocks_video USING btree (media_id);
+
+CREATE INDEX content_lists_blocks_video_order_idx ON public.content_lists_blocks_video USING btree (_order);
+
+CREATE INDEX content_lists_blocks_video_parent_id_idx ON public.content_lists_blocks_video USING btree (_parent_id);
+
+CREATE INDEX content_lists_blocks_video_path_idx ON public.content_lists_blocks_video USING btree (_path);
+
+CREATE INDEX content_lists_blocks_video_poster_idx ON public.content_lists_blocks_video USING btree (poster_id);
+
+CREATE INDEX content_lists_blocks_video_source_idx ON public.content_lists_blocks_video USING btree (source_id);
+
+CREATE INDEX content_lists_created_at_idx ON public.content_lists USING btree (created_at);
+
+CREATE INDEX content_lists_items_order_idx ON public.content_lists_items USING btree (_order);
+
+CREATE INDEX content_lists_items_parent_id_idx ON public.content_lists_items USING btree (_parent_id);
+
+CREATE INDEX content_lists_public_idx ON public.content_lists USING btree (public);
+
+CREATE INDEX content_lists_updated_at_idx ON public.content_lists USING btree (updated_at);
+
+CREATE INDEX entries__status_idx ON public.entries USING btree (_status);
+
+CREATE INDEX entries_author_idx ON public.entries USING btree (author_id);
+
+CREATE INDEX entries_created_at_idx ON public.entries USING btree (created_at);
+
+CREATE INDEX entries_kind_idx ON public.entries USING btree (kind);
+
+CREATE INDEX entries_published_at_idx ON public.entries USING btree (published_at);
+
+CREATE INDEX entries_rels_content_lists_id_idx ON public.entries_rels USING btree (content_lists_id);
+
+CREATE INDEX entries_rels_order_idx ON public.entries_rels USING btree ("order");
+
+CREATE INDEX entries_rels_parent_idx ON public.entries_rels USING btree (parent_id);
+
+CREATE INDEX entries_rels_path_idx ON public.entries_rels USING btree (path);
+
+CREATE INDEX entries_rels_sources_id_idx ON public.entries_rels USING btree (sources_id);
+
+CREATE INDEX entries_rels_topics_id_idx ON public.entries_rels USING btree (topics_id);
+
+CREATE UNIQUE INDEX entries_slug_idx ON public.entries USING btree (slug);
+
+CREATE INDEX entries_updated_at_idx ON public.entries USING btree (updated_at);
+
 CREATE INDEX media_created_at_idx ON public.media USING btree (created_at);
 
 CREATE UNIQUE INDEX media_filename_idx ON public.media USING btree (filename);
@@ -1265,11 +1127,37 @@ CREATE INDEX payload_folders_name_idx ON public.payload_folders USING btree (nam
 
 CREATE INDEX payload_folders_updated_at_idx ON public.payload_folders USING btree (updated_at);
 
+CREATE INDEX payload_jobs_completed_at_idx ON public.payload_jobs USING btree (completed_at);
+
+CREATE INDEX payload_jobs_created_at_idx ON public.payload_jobs USING btree (created_at);
+
+CREATE INDEX payload_jobs_has_error_idx ON public.payload_jobs USING btree (has_error);
+
+CREATE INDEX payload_jobs_log_order_idx ON public.payload_jobs_log USING btree (_order);
+
+CREATE INDEX payload_jobs_log_parent_id_idx ON public.payload_jobs_log USING btree (_parent_id);
+
+CREATE INDEX payload_jobs_processing_idx ON public.payload_jobs USING btree (processing);
+
+CREATE INDEX payload_jobs_queue_idx ON public.payload_jobs USING btree (queue);
+
+CREATE INDEX payload_jobs_task_slug_idx ON public.payload_jobs USING btree (task_slug);
+
+CREATE INDEX payload_jobs_total_tried_idx ON public.payload_jobs USING btree (total_tried);
+
+CREATE INDEX payload_jobs_updated_at_idx ON public.payload_jobs USING btree (updated_at);
+
+CREATE INDEX payload_jobs_wait_until_idx ON public.payload_jobs USING btree (wait_until);
+
 CREATE UNIQUE INDEX payload_kv_key_idx ON public.payload_kv USING btree (key);
 
 CREATE INDEX payload_locked_documents_created_at_idx ON public.payload_locked_documents USING btree (created_at);
 
 CREATE INDEX payload_locked_documents_global_slug_idx ON public.payload_locked_documents USING btree (global_slug);
+
+CREATE INDEX payload_locked_documents_rels_content_lists_id_idx ON public.payload_locked_documents_rels USING btree (content_lists_id);
+
+CREATE INDEX payload_locked_documents_rels_entries_id_idx ON public.payload_locked_documents_rels USING btree (entries_id);
 
 CREATE INDEX payload_locked_documents_rels_media_id_idx ON public.payload_locked_documents_rels USING btree (media_id);
 
@@ -1280,8 +1168,6 @@ CREATE INDEX payload_locked_documents_rels_parent_idx ON public.payload_locked_d
 CREATE INDEX payload_locked_documents_rels_path_idx ON public.payload_locked_documents_rels USING btree (path);
 
 CREATE INDEX payload_locked_documents_rels_payload_folders_id_idx ON public.payload_locked_documents_rels USING btree (payload_folders_id);
-
-CREATE INDEX payload_locked_documents_rels_posts_id_idx ON public.payload_locked_documents_rels USING btree (posts_id);
 
 CREATE INDEX payload_locked_documents_rels_snippets_id_idx ON public.payload_locked_documents_rels USING btree (snippets_id);
 
@@ -1310,112 +1196,6 @@ CREATE INDEX payload_preferences_rels_path_idx ON public.payload_preferences_rel
 CREATE INDEX payload_preferences_rels_users_id_idx ON public.payload_preferences_rels USING btree (users_id);
 
 CREATE INDEX payload_preferences_updated_at_idx ON public.payload_preferences USING btree (updated_at);
-
-CREATE INDEX posts__status_idx ON public.posts USING btree (_status);
-
-CREATE INDEX posts_author_idx ON public.posts USING btree (author_id);
-
-CREATE INDEX posts_blocks_audio_media_idx ON public.posts_blocks_audio USING btree (media_id);
-
-CREATE INDEX posts_blocks_audio_order_idx ON public.posts_blocks_audio USING btree (_order);
-
-CREATE INDEX posts_blocks_audio_parent_id_idx ON public.posts_blocks_audio USING btree (_parent_id);
-
-CREATE INDEX posts_blocks_audio_path_idx ON public.posts_blocks_audio USING btree (_path);
-
-CREATE INDEX posts_blocks_audio_source_idx ON public.posts_blocks_audio USING btree (source_id);
-
-CREATE INDEX posts_blocks_download_media_idx ON public.posts_blocks_download USING btree (media_id);
-
-CREATE INDEX posts_blocks_download_order_idx ON public.posts_blocks_download USING btree (_order);
-
-CREATE INDEX posts_blocks_download_parent_id_idx ON public.posts_blocks_download USING btree (_parent_id);
-
-CREATE INDEX posts_blocks_download_path_idx ON public.posts_blocks_download USING btree (_path);
-
-CREATE INDEX posts_blocks_download_source_idx ON public.posts_blocks_download USING btree (source_id);
-
-CREATE INDEX posts_blocks_embed_order_idx ON public.posts_blocks_embed USING btree (_order);
-
-CREATE INDEX posts_blocks_embed_parent_id_idx ON public.posts_blocks_embed USING btree (_parent_id);
-
-CREATE INDEX posts_blocks_embed_path_idx ON public.posts_blocks_embed USING btree (_path);
-
-CREATE INDEX posts_blocks_embed_snippet_idx ON public.posts_blocks_embed USING btree (snippet_id);
-
-CREATE INDEX posts_blocks_embed_source_idx ON public.posts_blocks_embed USING btree (source_id);
-
-CREATE INDEX posts_blocks_image_media_idx ON public.posts_blocks_image USING btree (media_id);
-
-CREATE INDEX posts_blocks_image_order_idx ON public.posts_blocks_image USING btree (_order);
-
-CREATE INDEX posts_blocks_image_parent_id_idx ON public.posts_blocks_image USING btree (_parent_id);
-
-CREATE INDEX posts_blocks_image_path_idx ON public.posts_blocks_image USING btree (_path);
-
-CREATE INDEX posts_blocks_image_source_idx ON public.posts_blocks_image USING btree (source_id);
-
-CREATE INDEX posts_blocks_link_order_idx ON public.posts_blocks_link USING btree (_order);
-
-CREATE INDEX posts_blocks_link_parent_id_idx ON public.posts_blocks_link USING btree (_parent_id);
-
-CREATE INDEX posts_blocks_link_path_idx ON public.posts_blocks_link USING btree (_path);
-
-CREATE INDEX posts_blocks_link_source_idx ON public.posts_blocks_link USING btree (source_id);
-
-CREATE INDEX posts_blocks_rich_text_order_idx ON public.posts_blocks_rich_text USING btree (_order);
-
-CREATE INDEX posts_blocks_rich_text_parent_id_idx ON public.posts_blocks_rich_text USING btree (_parent_id);
-
-CREATE INDEX posts_blocks_rich_text_path_idx ON public.posts_blocks_rich_text USING btree (_path);
-
-CREATE INDEX posts_blocks_video_media_idx ON public.posts_blocks_video USING btree (media_id);
-
-CREATE INDEX posts_blocks_video_order_idx ON public.posts_blocks_video USING btree (_order);
-
-CREATE INDEX posts_blocks_video_parent_id_idx ON public.posts_blocks_video USING btree (_parent_id);
-
-CREATE INDEX posts_blocks_video_path_idx ON public.posts_blocks_video USING btree (_path);
-
-CREATE INDEX posts_blocks_video_poster_idx ON public.posts_blocks_video USING btree (poster_id);
-
-CREATE INDEX posts_blocks_video_source_idx ON public.posts_blocks_video USING btree (source_id);
-
-CREATE INDEX posts_created_at_idx ON public.posts USING btree (created_at);
-
-CREATE INDEX posts_featured_image_featured_image_media_idx ON public.posts USING btree (featured_image_media_id);
-
-CREATE INDEX posts_featured_image_featured_image_source_idx ON public.posts USING btree (featured_image_source_id);
-
-CREATE INDEX posts_featured_snippet_idx ON public.posts USING btree (featured_snippet_id);
-
-CREATE INDEX posts_featured_snippet_source_idx ON public.posts USING btree (featured_snippet_source_id);
-
-CREATE INDEX posts_featured_video_featured_video_media_idx ON public.posts USING btree (featured_video_media_id);
-
-CREATE INDEX posts_featured_video_featured_video_poster_idx ON public.posts USING btree (featured_video_poster_id);
-
-CREATE INDEX posts_featured_video_featured_video_source_idx ON public.posts USING btree (featured_video_source_id);
-
-CREATE INDEX posts_published_at_idx ON public.posts USING btree (published_at);
-
-CREATE INDEX posts_rels_order_idx ON public.posts_rels USING btree ("order");
-
-CREATE INDEX posts_rels_parent_idx ON public.posts_rels USING btree (parent_id);
-
-CREATE INDEX posts_rels_path_idx ON public.posts_rels USING btree (path);
-
-CREATE INDEX posts_rels_sources_id_idx ON public.posts_rels USING btree (sources_id);
-
-CREATE INDEX posts_rels_topics_id_idx ON public.posts_rels USING btree (topics_id);
-
-CREATE INDEX posts_slides_order_idx ON public.posts_slides USING btree (_order);
-
-CREATE INDEX posts_slides_parent_id_idx ON public.posts_slides USING btree (_parent_id);
-
-CREATE UNIQUE INDEX posts_slug_idx ON public.posts USING btree (slug);
-
-CREATE INDEX posts_updated_at_idx ON public.posts USING btree (updated_at);
 
 CREATE INDEX site_settings_logo_idx ON public.site_settings USING btree (logo_id);
 
@@ -1461,101 +1241,23 @@ CREATE INDEX users_sessions_parent_id_idx ON public.users_sessions USING btree (
 
 CREATE INDEX users_updated_at_idx ON public.users USING btree (updated_at);
 
-ALTER TABLE ONLY public._posts_v_blocks_audio
-    ADD CONSTRAINT _posts_v_blocks_audio_media_id_media_id_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public._entries_v
+    ADD CONSTRAINT _entries_v_parent_id_entries_id_fk FOREIGN KEY (parent_id) REFERENCES public.entries(id) ON DELETE SET NULL;
 
-ALTER TABLE ONLY public._posts_v_blocks_audio
-    ADD CONSTRAINT _posts_v_blocks_audio_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public._posts_v(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public._entries_v_rels
+    ADD CONSTRAINT _entries_v_rels_content_lists_fk FOREIGN KEY (content_lists_id) REFERENCES public.content_lists(id) ON DELETE CASCADE;
 
-ALTER TABLE ONLY public._posts_v_blocks_audio
-    ADD CONSTRAINT _posts_v_blocks_audio_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public._entries_v_rels
+    ADD CONSTRAINT _entries_v_rels_parent_fk FOREIGN KEY (parent_id) REFERENCES public._entries_v(id) ON DELETE CASCADE;
 
-ALTER TABLE ONLY public._posts_v_blocks_download
-    ADD CONSTRAINT _posts_v_blocks_download_media_id_media_id_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public._entries_v_rels
+    ADD CONSTRAINT _entries_v_rels_sources_fk FOREIGN KEY (sources_id) REFERENCES public.sources(id) ON DELETE CASCADE;
 
-ALTER TABLE ONLY public._posts_v_blocks_download
-    ADD CONSTRAINT _posts_v_blocks_download_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public._posts_v(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public._entries_v_rels
+    ADD CONSTRAINT _entries_v_rels_topics_fk FOREIGN KEY (topics_id) REFERENCES public.topics(id) ON DELETE CASCADE;
 
-ALTER TABLE ONLY public._posts_v_blocks_download
-    ADD CONSTRAINT _posts_v_blocks_download_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public._posts_v_blocks_embed
-    ADD CONSTRAINT _posts_v_blocks_embed_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public._posts_v(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public._posts_v_blocks_embed
-    ADD CONSTRAINT _posts_v_blocks_embed_snippet_id_snippets_id_fk FOREIGN KEY (snippet_id) REFERENCES public.snippets(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public._posts_v_blocks_embed
-    ADD CONSTRAINT _posts_v_blocks_embed_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public._posts_v_blocks_image
-    ADD CONSTRAINT _posts_v_blocks_image_media_id_media_id_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public._posts_v_blocks_image
-    ADD CONSTRAINT _posts_v_blocks_image_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public._posts_v(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public._posts_v_blocks_image
-    ADD CONSTRAINT _posts_v_blocks_image_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public._posts_v_blocks_link
-    ADD CONSTRAINT _posts_v_blocks_link_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public._posts_v(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public._posts_v_blocks_link
-    ADD CONSTRAINT _posts_v_blocks_link_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public._posts_v_blocks_rich_text
-    ADD CONSTRAINT _posts_v_blocks_rich_text_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public._posts_v(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public._posts_v_blocks_video
-    ADD CONSTRAINT _posts_v_blocks_video_media_id_media_id_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public._posts_v_blocks_video
-    ADD CONSTRAINT _posts_v_blocks_video_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public._posts_v(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public._posts_v_blocks_video
-    ADD CONSTRAINT _posts_v_blocks_video_poster_id_media_id_fk FOREIGN KEY (poster_id) REFERENCES public.media(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public._posts_v_blocks_video
-    ADD CONSTRAINT _posts_v_blocks_video_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public._posts_v
-    ADD CONSTRAINT _posts_v_parent_id_posts_id_fk FOREIGN KEY (parent_id) REFERENCES public.posts(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public._posts_v_rels
-    ADD CONSTRAINT _posts_v_rels_parent_fk FOREIGN KEY (parent_id) REFERENCES public._posts_v(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public._posts_v_rels
-    ADD CONSTRAINT _posts_v_rels_sources_fk FOREIGN KEY (sources_id) REFERENCES public.sources(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public._posts_v_rels
-    ADD CONSTRAINT _posts_v_rels_topics_fk FOREIGN KEY (topics_id) REFERENCES public.topics(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public._posts_v
-    ADD CONSTRAINT _posts_v_version_author_id_users_id_fk FOREIGN KEY (version_author_id) REFERENCES public.users(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public._posts_v
-    ADD CONSTRAINT _posts_v_version_featured_image_media_id_media_id_fk FOREIGN KEY (version_featured_image_media_id) REFERENCES public.media(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public._posts_v
-    ADD CONSTRAINT _posts_v_version_featured_image_source_id_sources_id_fk FOREIGN KEY (version_featured_image_source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public._posts_v
-    ADD CONSTRAINT _posts_v_version_featured_snippet_id_snippets_id_fk FOREIGN KEY (version_featured_snippet_id) REFERENCES public.snippets(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public._posts_v
-    ADD CONSTRAINT _posts_v_version_featured_snippet_source_id_sources_id_fk FOREIGN KEY (version_featured_snippet_source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public._posts_v
-    ADD CONSTRAINT _posts_v_version_featured_video_media_id_media_id_fk FOREIGN KEY (version_featured_video_media_id) REFERENCES public.media(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public._posts_v
-    ADD CONSTRAINT _posts_v_version_featured_video_poster_id_media_id_fk FOREIGN KEY (version_featured_video_poster_id) REFERENCES public.media(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public._posts_v
-    ADD CONSTRAINT _posts_v_version_featured_video_source_id_sources_id_fk FOREIGN KEY (version_featured_video_source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public._posts_v_version_slides
-    ADD CONSTRAINT _posts_v_version_slides_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public._posts_v(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public._entries_v
+    ADD CONSTRAINT _entries_v_version_author_id_users_id_fk FOREIGN KEY (version_author_id) REFERENCES public.users(id) ON DELETE SET NULL;
 
 ALTER TABLE ONLY public._snippets_v
     ADD CONSTRAINT _snippets_v_parent_id_snippets_id_fk FOREIGN KEY (parent_id) REFERENCES public.snippets(id) ON DELETE SET NULL;
@@ -1569,6 +1271,81 @@ ALTER TABLE ONLY public._sources_v_rels
 ALTER TABLE ONLY public._sources_v_rels
     ADD CONSTRAINT _sources_v_rels_parent_fk FOREIGN KEY (parent_id) REFERENCES public._sources_v(id) ON DELETE CASCADE;
 
+ALTER TABLE ONLY public.content_lists_blocks_audio
+    ADD CONSTRAINT content_lists_blocks_audio_media_id_media_id_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.content_lists_blocks_audio
+    ADD CONSTRAINT content_lists_blocks_audio_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.content_lists(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.content_lists_blocks_audio
+    ADD CONSTRAINT content_lists_blocks_audio_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.content_lists_blocks_download
+    ADD CONSTRAINT content_lists_blocks_download_media_id_media_id_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.content_lists_blocks_download
+    ADD CONSTRAINT content_lists_blocks_download_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.content_lists(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.content_lists_blocks_download
+    ADD CONSTRAINT content_lists_blocks_download_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.content_lists_blocks_embed
+    ADD CONSTRAINT content_lists_blocks_embed_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.content_lists(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.content_lists_blocks_embed
+    ADD CONSTRAINT content_lists_blocks_embed_snippet_id_snippets_id_fk FOREIGN KEY (snippet_id) REFERENCES public.snippets(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.content_lists_blocks_embed
+    ADD CONSTRAINT content_lists_blocks_embed_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.content_lists_blocks_image
+    ADD CONSTRAINT content_lists_blocks_image_media_id_media_id_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.content_lists_blocks_image
+    ADD CONSTRAINT content_lists_blocks_image_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.content_lists(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.content_lists_blocks_image
+    ADD CONSTRAINT content_lists_blocks_image_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.content_lists_blocks_link
+    ADD CONSTRAINT content_lists_blocks_link_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.content_lists(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.content_lists_blocks_link
+    ADD CONSTRAINT content_lists_blocks_link_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.content_lists_blocks_rich_text
+    ADD CONSTRAINT content_lists_blocks_rich_text_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.content_lists(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.content_lists_blocks_video
+    ADD CONSTRAINT content_lists_blocks_video_media_id_media_id_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.content_lists_blocks_video
+    ADD CONSTRAINT content_lists_blocks_video_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.content_lists(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.content_lists_blocks_video
+    ADD CONSTRAINT content_lists_blocks_video_poster_id_media_id_fk FOREIGN KEY (poster_id) REFERENCES public.media(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.content_lists_blocks_video
+    ADD CONSTRAINT content_lists_blocks_video_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.content_lists_items
+    ADD CONSTRAINT content_lists_items_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.content_lists(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.entries
+    ADD CONSTRAINT entries_author_id_users_id_fk FOREIGN KEY (author_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.entries_rels
+    ADD CONSTRAINT entries_rels_content_lists_fk FOREIGN KEY (content_lists_id) REFERENCES public.content_lists(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.entries_rels
+    ADD CONSTRAINT entries_rels_parent_fk FOREIGN KEY (parent_id) REFERENCES public.entries(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.entries_rels
+    ADD CONSTRAINT entries_rels_sources_fk FOREIGN KEY (sources_id) REFERENCES public.sources(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.entries_rels
+    ADD CONSTRAINT entries_rels_topics_fk FOREIGN KEY (topics_id) REFERENCES public.topics(id) ON DELETE CASCADE;
+
 ALTER TABLE ONLY public.media
     ADD CONSTRAINT media_folder_id_payload_folders_id_fk FOREIGN KEY (folder_id) REFERENCES public.payload_folders(id) ON DELETE SET NULL;
 
@@ -1581,6 +1358,15 @@ ALTER TABLE ONLY public.payload_folders
 ALTER TABLE ONLY public.payload_folders_folder_type
     ADD CONSTRAINT payload_folders_folder_type_parent_fk FOREIGN KEY (parent_id) REFERENCES public.payload_folders(id) ON DELETE CASCADE;
 
+ALTER TABLE ONLY public.payload_jobs_log
+    ADD CONSTRAINT payload_jobs_log_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.payload_jobs(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.payload_locked_documents_rels
+    ADD CONSTRAINT payload_locked_documents_rels_content_lists_fk FOREIGN KEY (content_lists_id) REFERENCES public.content_lists(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.payload_locked_documents_rels
+    ADD CONSTRAINT payload_locked_documents_rels_entries_fk FOREIGN KEY (entries_id) REFERENCES public.entries(id) ON DELETE CASCADE;
+
 ALTER TABLE ONLY public.payload_locked_documents_rels
     ADD CONSTRAINT payload_locked_documents_rels_media_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE CASCADE;
 
@@ -1589,9 +1375,6 @@ ALTER TABLE ONLY public.payload_locked_documents_rels
 
 ALTER TABLE ONLY public.payload_locked_documents_rels
     ADD CONSTRAINT payload_locked_documents_rels_payload_folders_fk FOREIGN KEY (payload_folders_id) REFERENCES public.payload_folders(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public.payload_locked_documents_rels
-    ADD CONSTRAINT payload_locked_documents_rels_posts_fk FOREIGN KEY (posts_id) REFERENCES public.posts(id) ON DELETE CASCADE;
 
 ALTER TABLE ONLY public.payload_locked_documents_rels
     ADD CONSTRAINT payload_locked_documents_rels_snippets_fk FOREIGN KEY (snippets_id) REFERENCES public.snippets(id) ON DELETE CASCADE;
@@ -1610,99 +1393,6 @@ ALTER TABLE ONLY public.payload_preferences_rels
 
 ALTER TABLE ONLY public.payload_preferences_rels
     ADD CONSTRAINT payload_preferences_rels_users_fk FOREIGN KEY (users_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public.posts
-    ADD CONSTRAINT posts_author_id_users_id_fk FOREIGN KEY (author_id) REFERENCES public.users(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts_blocks_audio
-    ADD CONSTRAINT posts_blocks_audio_media_id_media_id_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts_blocks_audio
-    ADD CONSTRAINT posts_blocks_audio_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.posts(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public.posts_blocks_audio
-    ADD CONSTRAINT posts_blocks_audio_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts_blocks_download
-    ADD CONSTRAINT posts_blocks_download_media_id_media_id_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts_blocks_download
-    ADD CONSTRAINT posts_blocks_download_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.posts(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public.posts_blocks_download
-    ADD CONSTRAINT posts_blocks_download_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts_blocks_embed
-    ADD CONSTRAINT posts_blocks_embed_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.posts(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public.posts_blocks_embed
-    ADD CONSTRAINT posts_blocks_embed_snippet_id_snippets_id_fk FOREIGN KEY (snippet_id) REFERENCES public.snippets(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts_blocks_embed
-    ADD CONSTRAINT posts_blocks_embed_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts_blocks_image
-    ADD CONSTRAINT posts_blocks_image_media_id_media_id_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts_blocks_image
-    ADD CONSTRAINT posts_blocks_image_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.posts(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public.posts_blocks_image
-    ADD CONSTRAINT posts_blocks_image_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts_blocks_link
-    ADD CONSTRAINT posts_blocks_link_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.posts(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public.posts_blocks_link
-    ADD CONSTRAINT posts_blocks_link_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts_blocks_rich_text
-    ADD CONSTRAINT posts_blocks_rich_text_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.posts(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public.posts_blocks_video
-    ADD CONSTRAINT posts_blocks_video_media_id_media_id_fk FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts_blocks_video
-    ADD CONSTRAINT posts_blocks_video_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.posts(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public.posts_blocks_video
-    ADD CONSTRAINT posts_blocks_video_poster_id_media_id_fk FOREIGN KEY (poster_id) REFERENCES public.media(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts_blocks_video
-    ADD CONSTRAINT posts_blocks_video_source_id_sources_id_fk FOREIGN KEY (source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts
-    ADD CONSTRAINT posts_featured_image_media_id_media_id_fk FOREIGN KEY (featured_image_media_id) REFERENCES public.media(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts
-    ADD CONSTRAINT posts_featured_image_source_id_sources_id_fk FOREIGN KEY (featured_image_source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts
-    ADD CONSTRAINT posts_featured_snippet_id_snippets_id_fk FOREIGN KEY (featured_snippet_id) REFERENCES public.snippets(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts
-    ADD CONSTRAINT posts_featured_snippet_source_id_sources_id_fk FOREIGN KEY (featured_snippet_source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts
-    ADD CONSTRAINT posts_featured_video_media_id_media_id_fk FOREIGN KEY (featured_video_media_id) REFERENCES public.media(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts
-    ADD CONSTRAINT posts_featured_video_poster_id_media_id_fk FOREIGN KEY (featured_video_poster_id) REFERENCES public.media(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts
-    ADD CONSTRAINT posts_featured_video_source_id_sources_id_fk FOREIGN KEY (featured_video_source_id) REFERENCES public.sources(id) ON DELETE SET NULL;
-
-ALTER TABLE ONLY public.posts_rels
-    ADD CONSTRAINT posts_rels_parent_fk FOREIGN KEY (parent_id) REFERENCES public.posts(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public.posts_rels
-    ADD CONSTRAINT posts_rels_sources_fk FOREIGN KEY (sources_id) REFERENCES public.sources(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public.posts_rels
-    ADD CONSTRAINT posts_rels_topics_fk FOREIGN KEY (topics_id) REFERENCES public.topics(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public.posts_slides
-    ADD CONSTRAINT posts_slides_parent_id_fk FOREIGN KEY (_parent_id) REFERENCES public.posts(id) ON DELETE CASCADE;
 
 ALTER TABLE ONLY public.site_settings
     ADD CONSTRAINT site_settings_logo_id_media_id_fk FOREIGN KEY (logo_id) REFERENCES public.media(id) ON DELETE SET NULL;

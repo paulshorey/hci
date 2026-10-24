@@ -3,39 +3,38 @@ import { getPayload } from 'payload'
 import sharp from 'sharp'
 import { readFile } from 'node:fs/promises'
 import config from '../src/payload.config'
-import { required } from '../src/lib/env'
-import { importBundle, readFolder } from '../src/lib/snippets/bundles'
-import type { Post } from '../src/generated/payload-types'
-
+import { required } from '@multimedia/cms/lib/env'
+import { importBundle, readFolder } from '@multimedia/cms/lib/snippets/bundles'
+import { newListData } from '@multimedia/cms/lib/content/new-list'
+import type { ContentList } from '@multimedia/cms/types'
 const database = new URL(required('DB_HCI_URL'))
 if (
   process.env.NODE_ENV === 'production' ||
-  !['127.0.0.1', 'localhost', 'postgres'].includes(database.hostname)
+  !['localhost', '127.0.0.1', 'postgres'].includes(database.hostname)
 )
-  throw new Error('Sample seed is restricted to local development/test databases.')
+  throw new Error('Sample seed requires a local database.')
 const payload = await getPayload({ config })
 const richText = (text: string) => ({
   root: {
     type: 'root',
+    version: 1,
+    direction: null,
+    format: '' as const,
+    indent: 0,
     children: [
       {
         type: 'paragraph',
         version: 1,
+        direction: null,
+        format: '' as const,
+        indent: 0,
         children: [
           { type: 'text', version: 1, text, format: 0, detail: 0, mode: 'normal', style: '' },
         ],
-        direction: null,
-        format: '',
-        indent: 0,
       },
     ],
-    direction: null,
-    format: '' as const,
-    indent: 0,
-    version: 1,
   },
 })
-
 async function illustration(wide: boolean) {
   const buttons = Array.from(
     { length: 4 },
@@ -55,52 +54,28 @@ try {
   if (
     (
       await payload.find({
-        collection: 'posts',
+        collection: 'entries',
         where: { slug: { equals: 'small-targets-bigger-decisions' } },
         limit: 1,
       })
     ).totalDocs
   ) {
-    console.log('Sample content already exists; preserved it.')
+    console.log('Sample entries already exist; preserved them.')
   } else {
-    const topic =
-      (
-        await payload.find({
-          collection: 'topics',
-          where: { slug: { equals: 'interface-studies' } },
-          limit: 1,
-        })
-      ).docs[0] ||
-      (await payload.create({
-        collection: 'topics',
-        data: {
-          title: 'Interface studies',
-          slug: 'interface-studies',
-          description: 'Looking closely at how interfaces invite us to act.',
-        },
-      }))
-    const source =
-      (
-        await payload.find({
-          collection: 'sources',
-          where: {
-            url: { equals: 'https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html' },
-          },
-          limit: 1,
-        })
-      ).docs[0] ||
-      (await payload.create({
-        collection: 'sources',
-        data: {
-          title: 'Understanding target size',
-          publisher: 'W3C Web Accessibility Initiative',
-          url: 'https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html',
-          accessedAt: new Date().toISOString(),
-          notes:
-            'Sample reference. Replace these illustrative posts with your own researched evidence.',
-          _status: 'published',
-        },
-      }))
+    const topic = await payload.create({
+      collection: 'topics',
+      data: { title: 'Interaction studies', slug: 'interaction-studies' },
+    })
+    const source = await payload.create({
+      collection: 'sources',
+      data: {
+        title: 'Understanding target size',
+        url: 'https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html',
+        publisher: 'W3C',
+        accessedAt: new Date().toISOString(),
+        _status: 'published',
+      },
+    })
     const media = []
     for (const [index, wide] of [false, true].entries()) {
       const bytes = await illustration(wide)
@@ -114,37 +89,37 @@ try {
           },
           file: {
             data: bytes,
-            mimetype: 'image/png',
-            name: `sample-workspace-${index}.png`,
             size: bytes.length,
+            name: `sample-workspace-${index}.png`,
+            mimetype: 'image/png',
           },
         }),
       )
     }
-    const bundle = await importBundle({
+    const imported = await importBundle({
       payload,
       title: 'Target size laboratory — sample',
       files: await readFolder('samples/snippets/target-lab'),
     })
     const snippet = await payload.update({
       collection: 'snippets',
-      id: bundle.id,
+      id: imported.id,
       data: { _status: 'published' },
     })
-    const note = Buffer.from(
-      'Sample evidence note\n\nThese images and interactions are illustrative examples, not measured research.\nRecord your source URLs, access dates, captions, and observations here.\n',
+    const bytes = Buffer.from(
+      'These examples illustrate the CMS. They are not measured usability research.\n',
     )
-    const download = await payload.create({
+    const file = await payload.create({
       collection: 'media',
       data: { title: 'Sample evidence note', visibility: 'public' },
       file: {
-        data: note,
-        mimetype: 'text/plain',
+        data: bytes,
+        size: bytes.length,
         name: 'sample-evidence-note.txt',
-        size: note.length,
+        mimetype: 'text/plain',
       },
     })
-    const slides: NonNullable<Post['slides']> = [
+    const items: Omit<NonNullable<ContentList['items']>[number], 'id' | 'key'>[] = [
       {
         title: 'Start with an observation',
         layout: 'stacked',
@@ -152,7 +127,7 @@ try {
           {
             blockType: 'richText',
             body: richText(
-              'These are fictional interface studies that demonstrate the template. A slide can be text alone, or it can bring together images, video, links, and interactive evidence. Add your own observations and connect each claim to its source.',
+              'A list item can contain any combination of media, including text alone.',
             ),
           },
         ],
@@ -160,11 +135,11 @@ try {
       {
         title: 'Put the evidence side by side',
         layout: 'comparison',
-        content: media.map((item, index) => ({
-          blockType: 'image' as const,
-          media: item.id,
-          alt: item.alt!,
-          caption: `Illustrative prototype ${index ? 'B' : 'A'}: ${index ? 'larger targets with more spacing' : 'compact numbered controls'}. These are concept diagrams, not captured product screenshots.`,
+        content: media.map((image, index) => ({
+          blockType: 'image',
+          media: image.id,
+          alt: image.alt!,
+          caption: `Illustrative prototype ${index ? 'B' : 'A'}: ${index ? 'larger targets' : 'compact controls'}. These are fictional concept diagrams.`,
           source: source.id,
         })),
       },
@@ -177,8 +152,7 @@ try {
             snippet: snippet.id,
             title: 'Interactive target size example',
             height: 480,
-            caption:
-              'A self-contained HTML/CSS/JS experiment. Adjust the slider and select a target; no measurements are collected.',
+            caption: 'A self-contained HTML/CSS/JS experiment. No measurements are collected.',
           },
         ],
       },
@@ -190,105 +164,131 @@ try {
             blockType: 'link',
             url: source.url!,
             label: 'Read the W3C target-size explanation',
-            description: 'A primary reference for investigating target sizing in your own work.',
             source: source.id,
           },
-          {
-            blockType: 'download',
-            media: download.id,
-            label: 'Download the sample evidence note',
-            description: 'An example of attaching a downloadable document to a slide.',
-          },
+          { blockType: 'download', media: file.id, label: 'Download the sample evidence note' },
         ],
       },
     ]
-    try {
-      const bytes = await readFile('samples/focus-demo.webm')
-      const video = await payload.create({
-        collection: 'media',
-        data: { title: 'Illustrative focus-state video', visibility: 'public' },
-        file: {
-          data: bytes,
-          mimetype: 'video/webm',
-          name: 'sample-focus-demo.webm',
-          size: bytes.length,
+    const videoBytes = await readFile('samples/focus-demo.webm')
+    const video = await payload.create({
+      collection: 'media',
+      data: { title: 'Illustrative focus-state video', visibility: 'public' },
+      file: {
+        data: videoBytes,
+        size: videoBytes.length,
+        name: 'sample-focus-demo.webm',
+        mimetype: 'video/webm',
+      },
+    })
+    items.splice(2, 0, {
+      title: 'Watch a state change',
+      layout: 'stacked',
+      content: [
+        {
+          blockType: 'video',
+          sourceType: 'upload',
+          media: video.id,
+          poster: media[1].id,
+          caption:
+            'A generated animation showing a focus indicator moving between fictional controls.',
+          transcript: 'A focus outline moves between four controls.',
         },
-      })
-      slides.splice(2, 0, {
-        title: 'Watch a state change',
-        layout: 'stacked',
-        content: [
+      ],
+    })
+    const primary = await payload.create({
+      collection: 'content-lists',
+      data: newListData({
+        title: 'Introduction',
+        items: [
           {
-            blockType: 'video',
-            sourceType: 'upload',
-            media: video.id,
-            poster: media[1].id,
-            caption:
-              'A generated sample animation showing a focus indicator moving between fictional controls.',
-            transcript:
-              'A focus outline moves from the first numbered control to the second, third, and fourth.',
+            layout: 'stacked',
+            content: [
+              {
+                blockType: 'richText',
+                body: richText(
+                  'Good research starts with noticing. This example keeps every caption, source and file attached to the observation it supports.',
+                ),
+              },
+              {
+                blockType: 'image',
+                media: media[1].id,
+                alt: media[1].alt!,
+                caption: 'An illustrative interface, created to demonstrate this CMS.',
+              },
+            ],
           },
         ],
-      })
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-    }
+      }),
+    })
+    const evidence = await payload.create({
+      collection: 'content-lists',
+      data: newListData({ title: 'Evidence collection', presentation: 'carousel', items }),
+    })
+    const resources = await payload.create({
+      collection: 'content-lists',
+      data: newListData({
+        title: 'Further reading',
+        presentation: 'list',
+        items: [
+          {
+            layout: 'stacked',
+            content: [{ blockType: 'download', media: file.id, label: 'Evidence note' }],
+          },
+        ],
+      }),
+    })
     await payload.create({
-      collection: 'posts',
+      collection: 'entries',
       data: {
+        visibility: 'public',
         title: 'Small targets, bigger decisions',
         slug: 'small-targets-bigger-decisions',
         summary:
-          'A closer look at the space between intention and action — with side-by-side examples and an interaction you can try.',
-        byline: 'The field journal',
-        body: richText(
-          'Good research starts with noticing. This example brings different kinds of evidence into a single sequence, while keeping every caption, source, and file attached to the observation it supports.',
-        ),
-        featuredImage: {
-          media: media[1].id,
-          alt: media[1].alt,
-          caption: 'Illustrative workspace chooser, created for this template.',
-        },
+          'Side-by-side examples, video and interactive evidence in multiple multimedia lists.',
         topics: [topic.id],
         sources: [source.id],
-        slides,
+        byline: 'The field journal',
+        contentLists: [primary.id, evidence.id, resources.id],
         _status: 'published',
       },
     })
-    for (const [title, slug, summary, text] of [
-      [
-        'What an interface tells you while it waits',
-        'while-an-interface-waits',
-        'Loading is an interaction, too. A place to collect the states, signals, and small details that help us understand what comes next.',
-        'Use this entry as a starting point for a study of progress, feedback, or uncertainty. Replace this sample with your own recordings and findings.',
-      ],
-      [
-        'The evidence is part of the story',
-        'evidence-is-part-of-the-story',
-        'A useful observation has a trail: where it came from, what it shows, and what we still do not know.',
-        'Keep claims and supporting evidence together. Each slide can carry its own sources, and the article can keep a broader bibliography. This is illustrative sample content.',
-      ],
-    ])
-      await payload.create({
-        collection: 'posts',
-        data: {
-          title,
-          slug,
-          summary,
-          byline: 'The field journal',
-          topics: [topic.id],
-          slides: [
+    for (const [title, slug] of [
+      ['A clearer signal', 'a-clearer-signal'],
+      ['Room to think', 'room-to-think'],
+    ]) {
+      const list = await payload.create({
+        collection: 'content-lists',
+        data: newListData({
+          items: [
             {
-              title: 'An open question',
               layout: 'stacked',
-              content: [{ blockType: 'richText', body: richText(text) }],
+              content: [
+                {
+                  blockType: 'richText',
+                  body: richText(
+                    'A simple article uses exactly the same content model as a multimedia study.',
+                  ),
+                },
+              ],
             },
           ],
+        }),
+      })
+      await payload.create({
+        collection: 'entries',
+        data: {
+          visibility: 'public',
+          title,
+          slug,
+          summary: 'An illustrative entry in a reusable multimedia CMS.',
+          contentLists: [list.id],
           _status: 'published',
         },
       })
+    }
     console.log(
-      'Created three illustrative posts, media, a source, and an interactive bundle. No CMS accounts or default passwords were created.',
+      'Created three illustrative entries with media, interactive content and multiple related lists. No accounts were created.',
     )
   }
 } finally {

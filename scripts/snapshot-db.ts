@@ -2,7 +2,7 @@ import 'dotenv/config'
 import { execFileSync } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
-import { required } from '../src/lib/env'
+import { required } from '@multimedia/cms/lib/env'
 
 export function schemaSnapshot(databaseURL: string): string {
   // Connection strings stay in the environment rather than process arguments or logs.

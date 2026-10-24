@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { cms } from '@/lib/content/queries'
-import { siteURL } from '@/lib/env'
+import { siteURL } from '@multimedia/cms/lib/env'
 export const dynamic = 'force-dynamic'
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const payload = await cms()
@@ -8,7 +8,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let page = 1
   while (true) {
     const result = await payload.find({
-      collection: 'posts',
+      collection: 'entries',
       overrideAccess: false,
       depth: 0,
       limit: 100,

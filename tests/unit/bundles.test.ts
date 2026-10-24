@@ -9,8 +9,8 @@ import {
   readFolder,
   readZip,
   validateFiles,
-} from '../../src/lib/snippets/bundles'
-import { safeRelativePath } from '../../src/lib/storage/index'
+} from '@multimedia/cms/lib/snippets/bundles'
+import { safeRelativePath } from '@multimedia/cms/lib/storage/index'
 
 function zipFile(name: string, contents: Buffer, mode = 0o100644): Buffer {
   const filename = Buffer.from(name)

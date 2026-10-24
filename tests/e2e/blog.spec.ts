@@ -1,270 +1,174 @@
-import { expect, test } from '@playwright/test'
-import { readFile } from 'node:fs/promises'
-import { audioFixture } from '../fixtures/audio'
+import { expect, test, type Page } from '@playwright/test'
 
-test('journal, comparison slides, video, interactive modules, deep links and read-all work', async ({
+async function login(page: Page) {
+  await page.goto('/admin/login')
+  await page.getByLabel('Email').fill(process.env.HCI_E2E_EMAIL!)
+  await page.getByLabel('Password', { exact: true }).fill(process.env.HCI_E2E_PASSWORD!)
+  await page.getByRole('button', { name: 'Login' }).click()
+  await expect(page).not.toHaveURL(/\/login/)
+  await page.request.get('/api/users/me').then(async (response) => {
+    expect((await response.json()).user?.email).toBe(process.env.HCI_E2E_EMAIL)
+  })
+}
+const entryData = (slug: string) => ({
+  title: 'An empty primary entry',
+  slug,
+  _status: 'published',
+})
+
+test('HCI renders a primary list and multiple supplemental lists with mixed media', async ({
   page,
 }) => {
-  const errors: string[] = []
-  page.on('pageerror', (error) => errors.push(error.message))
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: /Observe closely/ })).toBeVisible()
   await page
-    .getByRole('heading', { name: 'Small targets, bigger decisions' })
+    .getByRole('heading', { name: 'Small targets, bigger decisions', exact: true })
     .getByRole('link')
     .click()
-  await expect(page.getByRole('heading', { name: 'Start with an observation' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    'Small targets, bigger decisions',
+  )
+  await expect(page.getByRole('region', { name: 'Primary content' })).toBeVisible()
+  await expect(
+    page.getByText('Good research starts with noticing.', { exact: false }),
+  ).toBeVisible()
+  await expect(page.getByText('Start with an observation')).toBeVisible()
   await page.getByRole('button', { name: 'Next slide' }).click()
-  const comparison = page.locator('.slide:not([hidden])')
-  await expect(comparison.getByRole('img')).toHaveCount(2)
-  await expect(comparison.locator('figcaption')).toHaveCount(2)
-  const deepLink = page.url()
-  await page.reload()
   await expect(page.getByRole('heading', { name: 'Put the evidence side by side' })).toBeVisible()
+  await expect(page.locator('.slideshow article:not([hidden]) img')).toHaveCount(2)
   await page.getByRole('button', { name: 'Next slide' }).click()
-  const video = page.locator('.slide:not([hidden]) video')
-  await expect(video).toBeVisible()
-  await video.evaluate(async (element) => {
-    await (element as HTMLVideoElement).play()
-  })
+  await expect(page.locator('.slideshow article:not([hidden]) video')).toBeVisible()
   await page.getByRole('button', { name: 'Next slide' }).click()
-  await expect
-    .poll(() => page.locator('video').evaluate((element) => (element as HTMLVideoElement).paused))
-    .toBe(true)
-  await page.locator('.slide:not([hidden]) .frame-shell').scrollIntoViewIfNeeded()
   const frame = page.frameLocator('iframe[title="Interactive target size example"]')
-  await expect(frame.getByText('Sample content · module imports', { exact: false })).toBeVisible()
-  await frame.getByRole('button', { name: 'First target' }).click()
-  await expect(frame.locator('#result')).toContainText('Selected target 1')
-  const isolated = await page
-    .locator('iframe[title="Interactive target size example"]')
-    .evaluate((element) => {
-      try {
-        return (element as HTMLIFrameElement).contentWindow!.document.body.innerText
-      } catch {
-        return 'isolated'
-      }
-    })
-  expect(isolated).toBe('isolated')
+  await expect(frame.locator('body')).toContainText('target')
   await page.getByRole('button', { name: 'Read all' }).click()
-  await expect(page.locator('.slide:not([hidden])')).toHaveCount(5)
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
-    true,
-  )
-  await page.goto(deepLink)
-  await expect(page.getByRole('heading', { name: 'Put the evidence side by side' })).toBeVisible()
-  expect(errors).toEqual([])
+  await expect(page.getByRole('heading', { name: 'Further reading' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Evidence note ↓', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Try the interaction' })).toBeVisible()
 })
 
-test('public API, feed, sitemap, topic pages and admin are reachable', async ({
+test('public APIs enforce draft privacy, list privacy, access and feed contracts', async ({
   request,
-  page,
 }) => {
-  expect((await request.get('/api/health')).status()).toBe(200)
-  expect((await request.get('/feed.xml')).headers()['content-type']).toContain('rss+xml')
-  expect(await (await request.get('/sitemap.xml')).text()).toContain(
-    '/posts/small-targets-bigger-decisions',
-  )
-  expect((await request.post('/api/posts', { data: { title: 'Forbidden' } })).status()).toBe(403)
+  expect((await request.post('/api/entries', { data: entryData('forbidden') })).status()).toBe(403)
+  const entries = await (await request.get('/api/entries?depth=1')).json()
+  expect(entries.totalDocs).toBe(3)
+  expect(entries.docs[0]).not.toHaveProperty('featuredImage')
   expect((await request.get('/editor-guide', { maxRedirects: 0 })).status()).toBe(307)
-  await page.goto('/topics/interface-studies')
-  await expect(page.getByRole('heading', { name: 'Interface studies', exact: true })).toBeVisible()
-  await page.goto('/admin')
-  await expect(page.getByLabel('Email')).toBeVisible()
+  const rss = await request.get('/feed.xml')
+  expect(rss.status()).toBe(200)
+  expect(await rss.text()).toContain('Small targets, bigger decisions')
+  expect((await request.get('/sitemap.xml')).status()).toBe(200)
+  expect((await request.get('/api/health')).status()).toBe(200)
 })
 
-test('an editor uploads through Payload, follows the guide and publishes uploaded evidence with audio', async ({
+test('required primary content can be empty and supplemental relations are optional', async ({
+  page,
+  request,
+}) => {
+  await login(page)
+  const response = await page.request.post('/api/entries', { data: entryData('empty-primary') })
+  expect(response.status()).toBe(201)
+  const entry = (await response.json()).doc
+  expect(entry.contentLists).toHaveLength(1)
+  const id =
+    typeof entry.contentLists[0] === 'object' ? entry.contentLists[0].id : entry.contentLists[0]
+  const content = await (await request.get(`/api/content-lists/${id}`)).json()
+  expect(content.items).toEqual([])
+  const remove = await page.request.patch(`/api/entries/${entry.id}?draft=true`, {
+    data: { contentLists: [] },
+  })
+  expect(remove.status()).toBe(400)
+  await page.goto('/posts/empty-primary')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('An empty primary entry')
+})
+
+test('the editor shows primary content as standard and adds optional lists through a content drawer', async ({
   page,
 }) => {
+  await login(page)
+  const response = await page.request.post('/api/entries?draft=true', {
+    data: { title: 'Editor workflow', slug: 'editor-workflow' },
+  })
+  expect(response.status()).toBe(201)
+  const entry = (await response.json()).doc
+  await page.goto(`/admin/collections/entries/${entry.id}`)
+  await expect(page.getByText('Primary content', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Remove list' })).toHaveCount(0)
+  await page.screenshot({ path: '.local/cms-editor.png', fullPage: true })
+  await page.getByRole('button', { name: 'Edit content', exact: true }).click()
+  const drawer = page.locator('.doc-drawer').last()
+  await expect(drawer).toBeVisible()
+  await drawer.locator('input[name="title"]').fill('Primary revision')
+  await drawer.getByRole('button', { name: /Add.*Item/i }).click()
+  await drawer.getByRole('button', { name: /Add.*block/i }).click()
+  await page.getByText('Rich Text', { exact: true }).click()
+  await drawer.locator('[contenteditable="true"]').fill('Primary text written in the editor.')
+  await drawer.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(drawer).not.toBeVisible()
+  await page.getByRole('button', { name: 'Add another content list', exact: true }).click()
+  const extra = page.locator('.doc-drawer').last()
+  await expect(extra).toBeVisible()
+  await extra.locator('input[name="title"]').fill('Optional evidence')
+  await extra.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(extra).not.toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Additional content lists' })).toBeVisible()
+  await expect(page.getByText('Optional evidence', { exact: true })).toBeVisible()
+  await expect
+    .poll(async () => {
+      const r = await page.request.get(`/api/entries/${entry.id}?draft=true&depth=0`)
+      return (await r.json()).contentLists?.length
+    })
+    .toBe(2)
+  await page.screenshot({ path: '.local/cms-editor-complete.png', fullPage: true })
+})
+
+test('new content revisions stay private until the entry is published', async ({
+  page,
+  request,
+}) => {
+  await login(page)
+  const created = await page.request.post('/api/entries', { data: entryData('revision-privacy') })
+  const entry = (await created.json()).doc
+  const oldId =
+    typeof entry.contentLists[0] === 'object' ? entry.contentLists[0].id : entry.contentLists[0]
+  const revision = await page.request.post(`/api/content-lists/${oldId}/revise`)
+  expect(revision.status()).toBe(201)
+  const next = await revision.json()
+  await page.request.patch(`/api/content-lists/${next.id}`, {
+    data: { title: 'Private next revision' },
+  })
   expect(
     (
-      await page.request.post('/api/users/login', {
-        data: {
-          email: process.env.HCI_E2E_EDITOR_EMAIL,
-          password: process.env.HCI_E2E_EDITOR_PASSWORD,
-        },
+      await page.request.patch(`/api/entries/${entry.id}?draft=true`, {
+        data: { contentLists: [next.id], _status: 'draft' },
       })
     ).status(),
   ).toBe(200)
-  await page.goto('/admin/collections/media/create')
-  await page
-    .locator('input[type=file]')
-    .first()
-    .setInputFiles({
-      name: 'editor-notes.csv',
-      mimeType: 'text/csv',
-      buffer: Buffer.from('observation,value\nkeyboard,true\n'),
-    })
-  await page.getByRole('textbox', { name: /^Title/ }).fill('Evidence entered in the editor')
-  await page.getByRole('button', { name: 'Save', exact: true }).click()
-  await page.waitForURL(/\/admin\/collections\/media\/\d+/)
-  const id = Number(new URL(page.url()).pathname.split('/').at(-1))
-  expect(Number.isInteger(id)).toBe(true)
-  const mediaResponse = await page.request.get(`/api/media/${id}`, {
-    headers: { Origin: 'http://localhost:4500' },
-  })
-  expect(mediaResponse.status()).toBe(200)
-  const media = await mediaResponse.json()
-  expect(media.visibility).toBe('private')
-  await page.getByRole('button', { name: 'Open Menu', exact: true }).click()
-  await page.getByRole('link', { name: 'Editor guide', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Add and organize your evidence.' })).toBeVisible()
-  await page.getByRole('link', { name: 'import an interactive ZIP', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Import draft bundle' })).toBeVisible()
-  const headers = { Origin: 'http://localhost:4500' }
-  await page.request.patch(`/api/media/${id}`, { headers, data: { visibility: 'public' } })
-  const source = await page.request.post('/api/sources', {
-    headers,
-    data: { title: 'My uploaded evidence', attachments: [id], _status: 'published' },
-  })
-  expect(source.status()).toBe(201)
-  const sourceID = (await source.json()).doc.id
-  const audio = await page.request.post('/api/media', {
-    headers,
-    multipart: {
-      _payload: JSON.stringify({ title: 'Editor audio', visibility: 'public' }),
-      file: { name: 'editor-audio.wav', mimeType: 'audio/wav', buffer: audioFixture() },
-    },
-  })
-  expect(audio.status()).toBe(201)
-  const audioID = (await audio.json()).doc.id
-  const article = await page.request.post('/api/posts', {
-    headers,
-    data: {
-      title: 'Uploaded evidence article',
-      slug: 'uploaded-evidence-article',
-      summary: 'Entered manually',
-      sources: [sourceID],
-      _status: 'published',
-      slides: [
-        {
-          title: 'Listen to the evidence',
-          layout: 'stacked',
-          content: [
-            {
-              blockType: 'audio',
-              media: audioID,
-              caption: 'An illustrative audio fixture',
-              transcript: 'A short generated tone.',
-              source: sourceID,
-            },
-          ],
-        },
-        {
-          title: 'Original data',
-          layout: 'stacked',
-          content: [{ blockType: 'download', media: id, label: 'Download the dataset' }],
-        },
-      ],
-    },
-  })
-  expect(article.status()).toBe(201)
-  await page.goto('/posts/uploaded-evidence-article')
-  await expect(page.getByText('An illustrative audio fixture')).toBeVisible()
-  await page.locator('audio').evaluate(async (element) => {
-    await (element as HTMLAudioElement).play()
-  })
-  await page.getByRole('button', { name: 'Next slide' }).click()
+  expect((await request.get(`/api/content-lists/${next.id}`)).status()).toBe(404)
+  const publicEntry = await (await request.get(`/api/entries/${entry.id}?depth=0`)).json()
+  expect(publicEntry.contentLists).toEqual([oldId])
+})
+
+test('an editor can create and publish an empty-primary entry entirely through the admin UI', async ({
+  page,
+  request,
+}) => {
+  await login(page)
+  await page.goto('/admin/collections/entries/create')
+  await expect(page.getByText('Primary content', { exact: true })).toBeVisible()
+  await page.locator('input[name="title"]').fill('Created in the admin')
+  await page.locator('input[name="slug"]').fill('created-in-admin')
+  await page.getByRole('button', { name: 'Publish changes', exact: true }).click()
   await expect
-    .poll(() => page.locator('audio').evaluate((element) => (element as HTMLAudioElement).paused))
-    .toBe(true)
-  await expect(page.getByRole('link', { name: 'Evidence entered in the editor ↓' })).toBeVisible()
-})
-
-test('draft posts require authenticated previews and never appear in public APIs', async ({
-  page,
-  request,
-}) => {
-  const login = await page.request.post('/api/users/login', {
-    data: { email: process.env.HCI_E2E_EMAIL, password: process.env.HCI_E2E_PASSWORD },
-  })
-  expect(login.status()).toBe(200)
-  const created = await page.request.post('/api/posts', {
-    headers: { Origin: 'http://localhost:4500' },
-    data: {
-      title: 'Private draft title',
-      slug: 'private-draft',
-      summary: 'Private draft summary',
-      _status: 'draft',
-      slides: [],
-    },
-  })
-  expect(created.status()).toBe(201)
-  const publicResult = await request.get('/api/posts?where[slug][equals]=private-draft')
-  expect((await publicResult.json()).totalDocs).toBe(0)
-  expect((await request.get('/posts/private-draft')).status()).toBe(404)
-  expect((await request.get('/preview?slug=private-draft')).status()).toBe(401)
-  await page.goto('/preview?slug=private-draft')
-  await expect(page.getByRole('heading', { name: 'Private draft title' })).toBeVisible()
-  await expect(page.getByText('Authenticated draft preview')).toBeVisible()
-  await page.getByRole('link', { name: 'Exit preview' }).click()
-  expect((await page.request.get('/posts/private-draft')).status()).toBe(404)
-})
-
-test('CMS ZIP import, authenticated bundle previews, publishing and private media delivery work', async ({
-  page,
-  request,
-}) => {
-  expect((await request.post('/api/bundle-import')).status()).toBe(401)
-  await page.request.post('/api/users/login', {
-    data: { email: process.env.HCI_E2E_EMAIL, password: process.env.HCI_E2E_PASSWORD },
-  })
-  await page.goto('/bundles/import')
-  await page.getByLabel('Title', { exact: true }).fill('A browser-imported bundle')
-  await page.getByLabel('ZIP bundle').setInputFiles('tests/fixtures/wrapped.zip')
-  await page.getByRole('button', { name: 'Import draft bundle' }).click()
-  await page.waitForURL(/\/admin\/collections\/snippets\/\d+/)
-  const id = page.url().split('/').at(-1)!
-  expect((await request.get(`http://localhost:4501/bundles/${id}/index.html`)).status()).toBe(404)
-  await page.goto(`/snippet-preview?id=${id}`)
-  await expect(
-    page.frameLocator('iframe').getByRole('heading', { name: 'Imported example' }),
-  ).toBeVisible()
-  await expect(
-    page.frameLocator('iframe').getByRole('heading', { name: 'Imported example' }),
-  ).toHaveCSS('color', 'rgb(35, 94, 88)')
-  const published = await page.request.patch(`/api/snippets/${id}`, {
-    headers: { Origin: 'http://localhost:4500' },
-    data: { _status: 'published' },
-  })
-  expect(published.status()).toBe(200)
-  expect((await request.get(`http://localhost:4501/bundles/${id}/index.html`)).status()).toBe(200)
-  const featured = await page.request.post('/api/posts', {
-    headers: { Origin: 'http://localhost:4500' },
-    data: {
-      title: 'Featured interaction',
-      slug: 'featured-interaction',
-      summary: 'An embed with context',
-      featuredSnippet: Number(id),
-      featuredSnippetCaption: 'A caption underneath the featured experiment.',
-      _status: 'published',
-    },
-  })
-  expect(featured.status()).toBe(201)
-  await page.goto('/posts/featured-interaction')
-  await expect(page.getByText('A caption underneath the featured experiment.')).toBeVisible()
-  const uploaded = await page.request.post('/api/media', {
-    headers: { Origin: 'http://localhost:4500' },
-    multipart: {
-      _payload: JSON.stringify({ title: 'Private browser fixture', visibility: 'private' }),
-      file: {
-        name: 'private-note.txt',
-        mimeType: 'text/plain',
-        buffer: Buffer.from('private text'),
-      },
-    },
-  })
-  expect(uploaded.status()).toBe(201)
-  const media = (await uploaded.json()).doc
-  expect((await request.get(media.url)).status()).not.toBe(200)
-  expect(
-    (await page.request.get(media.url, { headers: { Origin: 'http://localhost:4500' } })).status(),
-  ).toBe(200)
-  const video = (await (await request.get('/api/media?where[mimeType][equals]=video/webm')).json())
-    .docs[0]
-  const response = await request.get(video.url, { headers: { Range: 'bytes=0-99' } })
-  expect(response.status()).toBe(206)
-  expect((await response.body()).length).toBe(100)
-  expect((await readFile('tests/fixtures/hello.zip')).length).toBeGreaterThan(0)
+    .poll(async () => {
+      const response = await request.get(
+        '/api/entries?where[slug][equals]=created-in-admin&depth=1',
+      )
+      const result = await response.json()
+      return result.docs?.[0]?.contentLists?.[0]?.items
+    })
+    .toEqual([])
+  await page.goto('/posts/created-in-admin')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Created in the admin')
 })

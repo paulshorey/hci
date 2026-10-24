@@ -3,8 +3,8 @@ import { test } from 'node:test'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { embedHandler } from '../../services/embeds/handler'
-import { previewToken } from '../../src/lib/snippets/tokens'
-import { validateFiles } from '../../src/lib/snippets/bundles'
+import { previewToken } from '@multimedia/cms/lib/snippets/tokens'
+import { validateFiles } from '@multimedia/cms/lib/snippets/bundles'
 
 test('embed server protects drafts, serves relative resources, enforces its manifest, ranges and CSP', async () => {
   const file = Buffer.from('<html>hello world</html>')

@@ -1,5 +1,6 @@
 packages:
   - .
+  - 'packages/*'
 onlyBuiltDependencies:
   - esbuild
   - sharp
@@ -10,3 +11,7 @@ overrides:
   'monaco-editor>dompurify': 3.4.17
   '@esbuild-kit/core-utils>esbuild': 0.25.12
   '@payloadcms/plugin-cloud-storage@3.91.0>find-node-modules': '-'
+  '@lexical/headless>happy-dom': 21.0.4
+  'undici@7': 7.30.1
+  '@payloadcms/email-nodemailer>nodemailer': 10.1.4
+  'fast-uri@3': 3.1.9

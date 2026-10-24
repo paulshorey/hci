@@ -49,7 +49,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ p
         <div className="empty-state">
           <h2>A place for your next observation.</h2>
           <p>
-            Create a post in Payload, or run the local sample-content seed to explore the template.
+            Create an entry in Payload, or run the local sample-content seed to explore the
+            template.
           </p>
           <Link className="button" href="/admin">
             Open the editor ↗

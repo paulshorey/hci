@@ -1,14 +1,20 @@
-# HCI blog
+# Multimedia CMS
 
-A reusable TypeScript blog for curated research and multimedia slideshows, built with Next.js, Payload, and PostgreSQL.
+A reusable TypeScript/Payload CMS for multimedia websites. The root Next.js application is the first client, HCI. Each website deploys its own installation, PostgreSQL database, private Railway Bucket, users and secrets.
 
-Posts own ordered slides; each slide owns ordered, typed content blocks. Images, videos, audio, links, rich text, downloads, and executable HTML/CSS/JS bundles can coexist in one slide. Reordering a slide preserves all of its content, captions, and sources.
+An **entry is a container** for identity, metadata, permissions and publishing. Its ordered `contentLists` relationships point to separate content-list records. The first relation is required and created automatically. Every list may be completely empty; otherwise it contains ordered items with any combination of rich text, images, video, audio, links, files and isolated interactive bundles. Repeated media types are supported.
+
+## Organization
+
+- `packages/multimedia-cms`: Payload collections, field definitions, permissions, immutable list revisions, asset handling and publishing safeguards.
+- `packages/multimedia-renderers`: optional React block, list and carousel renderers.
+- `src`: HCI's Next.js application, CMS host configuration, branding and routes. The CMS package has no dependency on HCI routes or components; host-only navigation components are supplied through configuration.
+- `services/embeds`: separate origin for validated HTML/CSS/JS bundles.
+- `src/migrations`, `schema/current.sql`: this installation's generated migration baseline and checked SQL snapshot.
 
 ## Local development
 
-Requirements: Node 24, pnpm 10.28.1, and PostgreSQL 17 (Docker Compose is provided).
-
-When upgrading an existing checkout, rename the `DATABASE_URL` key in your ignored `.env` to `DB_HCI_URL`, keeping its existing connection string, before running the commands below. `setup:local` preserves existing `.env` files and does not rename old settings automatically. If `DB_HCI_URL` already exists, keep its intended HCI connection and remove the obsolete project-local `DATABASE_URL` entry.
+Use Node 24, pnpm 10.28.1 and PostgreSQL 17, including matching `pg_dump`/`psql` clients.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -18,56 +24,39 @@ pnpm db:migrate
 pnpm seed
 ```
 
-Run these in separate terminals:
+Run `pnpm dev` and `pnpm embeds:dev` in separate terminals. Open the site and CMS at `http://localhost:4500` and `/admin`; embeds use port 4501. Create the first administrator through Payload's first-user screen. The local seed creates three clearly illustrative entries and sample files, with no accounts or default passwords.
 
-```sh
-pnpm dev
-pnpm embeds:dev
-```
+The app and all database commands require project-specific `DB_HCI_URL`. A generic global `DATABASE_URL` is ignored. Keep actual connection strings and generated authentication secrets in ignored `.env` or the intended process environment. `setup:local` preserves an existing file. `HCI_TEST_DATABASE_URL` must point to a separate local disposable database ending in `_test`, with a role able to create databases.
 
-Open [the blog](http://localhost:4500) and [Payload](http://localhost:4500/admin). Create your own first admin account in Payload. The seed creates no accounts or default passwords. The embed server listens on port 4501 and must use a different origin from the application.
+The old experimental blog schema is intentionally incompatible. Existing installations must follow [the one-time reset procedure](docs/cms-reset.md) before migrating this baseline. Ordinary releases never reset databases.
 
-`setup:local` creates an ignored `.env` with random authentication and preview secrets. It preserves an existing file. For a native PostgreSQL installation, create local `hci` and `hci_test` databases and adjust the ignored connection URLs. The application, embed service and database tools require `DB_HCI_URL`; a generic global `DATABASE_URL` is ignored. Local development and CI use their own local PostgreSQL URL. Application tables are created entirely by migrations.
+## Manual editing
 
-The seed includes three clearly labeled illustrative articles, generated interface diagrams, a small video, a download, and an interactive experiment. These demonstrate the content model and make no claims about measured usability. Existing sample posts are preserved on subsequent runs.
+1. Create an **Entry** and give it a title and slug. Its **Primary content** section is always present. It has no remove-list control and can stay empty.
+2. Use **Add content** or **Edit content** to open the content editor within the entry. Add optional items and any combination of content blocks, then save. This creates a new list revision automatically.
+3. Use **Add another content list** for optional carousels, lists, grids or continuous content. Additional lists can be removed or reordered without changing the primary relation. All lists have identical content capabilities.
+4. Upload reusable files in **Media**. Organize them with folders; folder changes do not move storage objects. Images, browser-ready video, audio, documents, datasets and downloadable ZIPs are supported. Keep files private until public delivery is intended.
+5. Add captions, image descriptions and optional source relationships to placements. Publish referenced sources and interactive bundles and make files public before publishing a public entry. No block or media type is mandatory.
+6. Save drafts and use Preview. Drafts, scheduled releases and restored entry versions point to their exact content-list revisions. **Public website** and **Editorial team only** control entry delivery independently from draft/published status.
+7. Use Payload's publishing controls to schedule publishing or unpublishing. Railway's persistent web service runs the native job queue every minute with `CMS_RUN_JOBS=true`; failures remain visible in Payload's jobs collection and publishing still enforces access and asset validation.
 
-## Editing content
+Creating additional accounts, deleting library records and changing site settings require an administrator. Editors can write and publish content. CMS account identities and source research notes stay out of anonymous responses.
 
-1. Upload images, video, audio, documents, datasets or downloadable ZIP archives in **Media**. Use folders to organize the library. Files start private; mark files public when they are ready for public delivery.
-2. Add evidence in **Sources**, including a web URL or uploaded evidence attachments, publisher, access date, and optional archive URL. Editorial notes remain private. Published attachments must be public and stay protected while their source is published.
-3. Create a **Post**. Set its title, unique slug, summary, optional article text, and optional featured image/video/link/bundle.
-4. Add slides in the **Slides** tab. Each slide can contain any number of text, image, video, audio, link, download, or embed blocks. Choose a stacked or comparison layout.
-5. Add captions and image alt text. Publish referenced sources/bundles and make referenced files public before publishing the post.
-6. Use **Preview** to inspect an authenticated draft, then publish. A newer unpublished revision does not replace the public version.
+## Interactive folders and files
 
-Published relationships remain protected after publication. Remove a managed reference from the published article, or unpublish that article, before replacing/cropping its media file, making it private, unpublishing its source/bundle, or deleting the referenced record. To revise published evidence while keeping the article live, upload a new Media record and explicitly select it in the article. Removing a reference only in a newer draft does not change the live article. Site logos similarly require public images and protect the chosen file until the logo is replaced.
-
-Site branding, descriptions, logo, internal navigation, and display time zone are managed in **Site Settings**. The initial display time zone is America/Chicago; stored timestamps remain absolute instants. Users have admin/editor roles. Only admins manage accounts, delete content, or change site settings. Public reads always enforce Payload access control; the public byline is separate from the private CMS account relationship.
-
-The Payload navigation links to the authenticated **Editor guide** and **Import an interactive ZIP**. The Snippets library also links to the importer; it does not offer an empty manual-create form. Ordinary ZIPs stay downloadable archives in Media; imported interactive ZIPs become isolated runnable bundles.
-
-## Interactive bundles
-
-Import a ZIP at [Import a bundle](http://localhost:4500/bundles/import), or import a folder:
+Ordinary ZIP archives remain downloadable Media files. To run HTML/CSS/JS, use the authenticated **Import an interactive ZIP** page or:
 
 ```sh
 pnpm snippets:import /absolute/path/to/folder 'Experiment title' index.html
 ```
 
-Files keep their relative paths. The bundle's entry file can load local CSS, classic or module scripts, JSON, fonts, nested images, and web video. The included example lives in `samples/snippets/target-lab`.
-
-Imported bundles start as drafts. Use the Preview button on the Snippet document, then publish it before referencing it in a published article. Published bundle files are immutable; import an updated folder as a new Snippet document/version. Old published posts retain their original evidence.
-
-The isolated embed server serves only manifest-listed files. It has no CMS HTTP routes and uses sandbox/CSP restrictions. Draft preview URLs are short-lived capabilities bound to one bundle. Relative resources share the capability path so previews work without exposing CMS cookies.
-
-See [architecture](docs/architecture.md) for the extension points, [storage](docs/storage.md) for limits and the sandbox contract, and [storage options and account setup](docs/storage-options.md) for the researched provider comparison, credentials and recovery plan.
+Imported files keep their relative paths in an immutable bundle manifest. Import updates as new bundle versions. Bundles run in a browser sandbox on a separate origin, without CMS HTTP routes or authentication cookies. External network dependencies remain blocked. See [storage and sandbox rules](docs/storage.md).
 
 ## Database workflow
 
-Payload configuration is the schema definition. Automatic schema push is disabled in every environment. Use the wrapper `db:migrate` to obtain the migration lock and enforce applied-file checksums.
+Payload collections and blocks are the only application schema definition. Schema push is disabled. Generate additive forward migrations and commit the generated contracts and SQL snapshot:
 
 ```sh
-# After changing collections or blocks:
 pnpm db:migration:create descriptive_name
 pnpm db:migrate
 pnpm generate:types
@@ -75,9 +64,7 @@ pnpm db:snapshot
 pnpm db:verify
 ```
 
-Commit migrations, generated types/schema, and the SQL snapshot with the application change. Applied migration files are immutable. Use additive forward migrations and backfills for existing data. Never use `payload migrate:reset`, schema push, or migration-down commands on deployed databases.
-
-`db:verify` requires matching PostgreSQL 17 client tools and a local `HCI_TEST_DATABASE_URL` ending in `_test`. It creates and removes a separate database; it does not reset your blog database. The local test account needs `CREATEDB` privileges. Fresh Docker volumes create `hci_test` through the local initialization script.
+Always use `pnpm db:migrate`, which holds a migration lock and checks applied-file checksums. Applied migrations are immutable. Do not run migration-down, native reset or schema-push commands against deployed data. The narrowly recorded experimental reset exception cannot remove or rewrite the new baseline.
 
 ## Verification
 
@@ -93,16 +80,6 @@ pnpm exec playwright install chromium
 pnpm test:e2e
 ```
 
-Browser tests run the production build on ports 4500/4501 against their own temporary database and asset directory. Stop local servers on those ports first. Test accounts use generated credentials and are removed with the test database. Integration tests also use a separate temporary database. S3 adapter tests exercise real AWS SDK wire requests against a local test server; they do not establish live provider access.
+Database tests create and remove their own local databases. Browser tests use the production build and their own database, generated accounts and storage directory on ports 4500/4501; stop other local servers on these ports first. S3 tests exercise real signed AWS SDK wire requests against a local fixture, not the live provider.
 
-To inspect a production build locally with disk storage, use `ALLOW_PERSISTENT_DISK=true pnpm start` and `ALLOW_PERSISTENT_DISK=true pnpm embeds:start`. Railway deployments use S3 storage.
-
-## Deployment
-
-The TypeScript Railway graph is in `.railway/railway.ts`: Postgres 17, a private Railway Bucket, a web/CMS service, and an isolated embed service. Railway Buckets are the selected primary storage for uploads and interactive bundles. Native variable references connect both services to their own environment's bucket without copying access keys. `main` supplies development and `prod` supplies production. The web service runs migrations before starting the new release.
-
-The HCI project is configured with separate dev and production environments in Virginia. [Deployment details](docs/deployment.md) record their URLs, IDs, first-administrator credential location and automatic deployment/backup settings. GitHub Actions applies infrastructure changes and verifies backup schedules; Railway's GitHub integration deploys application pushes from each environment's branch.
-
-No cloud resources are provisioned by cloning or installing this project. Select the exact Railway project, environment, bucket region, and domains before applying the graph. The region is deliberately required because a bucket's region cannot change after creation. See [the deployment runbook](.railway/README.md) for bootstrap variables, environment secrets, plan/apply, and release verification.
-
-SMTP is optional locally. Configure it before relying on CMS password recovery in a deployment. With no transport, delivery fails explicitly; emails and reset tokens are not printed to logs.
+See [architecture](docs/architecture.md), [deployment targets](docs/deployment.md), [Railway operations](.railway/README.md), and [storage setup](docs/storage-options.md). Deployed storage uses a private Railway Bucket through S3-compatible adapters. Railway application services use `DB_HCI_URL=${{postgres.DATABASE_PUBLIC_URL}}`; private database networking remains a future explicit choice. Configure SMTP before relying on password recovery; reset tokens and failed emails are never printed to logs.
