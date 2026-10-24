@@ -744,3 +744,39 @@ test('a list edit loaded before sealing cannot mutate an entry revision after pu
     await Promise.allSettled([publishing, editing].filter(Boolean))
   }
 })
+
+test('entry-level research sources remain protected through published snapshots and entry history', async () => {
+  const evidence = await payload.create({
+    collection: 'sources',
+    data: {
+      title: 'Entry research source',
+      url: 'https://example.com/research',
+      accessedAt: new Date().toISOString(),
+      _status: 'published',
+    },
+  })
+  const doc = await entry()
+  await payload.update({
+    collection: 'entries',
+    id: doc.id,
+    data: { sources: [evidence.id], _status: 'published' },
+  })
+  await payload.update({
+    collection: 'entries',
+    id: doc.id,
+    draft: true,
+    data: { sources: [], _status: 'draft' },
+  })
+  await assert.rejects(
+    payload.update({ collection: 'sources', id: evidence.id, data: { _status: 'draft' } }),
+    /published.*entry/,
+  )
+  await assert.rejects(payload.delete({ collection: 'sources', id: evidence.id }), /saved.*entry/)
+  await payload.update({
+    collection: 'entries',
+    id: doc.id,
+    data: { sources: [], _status: 'draft' },
+  })
+  await payload.update({ collection: 'sources', id: evidence.id, data: { _status: 'draft' } })
+  await assert.rejects(payload.delete({ collection: 'sources', id: evidence.id }), /history/)
+})

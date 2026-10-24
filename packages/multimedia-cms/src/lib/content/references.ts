@@ -29,6 +29,42 @@ export async function rejectPublishedReferences(
   includeHistory = false,
 ) {
   await lockPublishedContent(req)
+  if (kind === 'sources') {
+    const entries = await req.payload.find({
+      collection: 'entries',
+      req,
+      overrideAccess: true,
+      draft: false,
+      depth: 0,
+      limit: 1,
+      select: { title: true },
+      where: {
+        and: [
+          { sources: { contains: id } },
+          ...(includeHistory
+            ? []
+            : [{ _status: { equals: 'published' } }, { visibility: { equals: 'public' } }]),
+        ],
+      },
+    })
+    if (entries.docs[0])
+      throw new APIError(
+        `This source is used by the ${includeHistory ? 'saved' : 'published'} entry “${entries.docs[0].title}”. Remove its reference before withdrawing the source.`,
+        400,
+      )
+    if (includeHistory) {
+      const history = await req.payload.findVersions({
+        collection: 'entries',
+        req,
+        overrideAccess: true,
+        depth: 0,
+        limit: 1,
+        where: { 'version.sources': { contains: id } },
+      })
+      if (history.docs[0])
+        throw new APIError('This source is retained by entry history and cannot be deleted.', 400)
+    }
+  }
   let page = 1
   while (true) {
     const result = await req.payload.find({
