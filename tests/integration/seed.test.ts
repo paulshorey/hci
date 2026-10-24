@@ -34,6 +34,12 @@ test('sample seed resumes interrupted dependencies and entries without rewriting
     execFileSync('pnpm', ['db:migrate'], { env, stdio: 'pipe', timeout: 90000 })
     database = new Client({ connectionString: url.href })
     await database.connect()
+    const draft = (
+      await database.query(`INSERT INTO sources(title,url,notes,_status)
+      VALUES('Unfinished owner research',
+        'https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html',
+        'Preserve these private notes','draft') RETURNING *`)
+    ).rows[0]
     const interruptAt = async (slug: string) => {
       await database!
         .query(`CREATE OR REPLACE FUNCTION interrupt_sample_seed() RETURNS trigger AS $$
@@ -46,7 +52,7 @@ test('sample seed resumes interrupted dependencies and entries without rewriting
     await interruptAt('small-targets-bigger-decisions')
     assert.notEqual(run().status, 0)
     assert.equal((await database.query('SELECT count(*)::int AS n FROM topics')).rows[0].n, 1)
-    assert.equal((await database.query('SELECT count(*)::int AS n FROM sources')).rows[0].n, 1)
+    assert.equal((await database.query('SELECT count(*)::int AS n FROM sources')).rows[0].n, 2)
     await database.query('DROP TRIGGER interrupt_sample_seed ON entries')
     await interruptAt('room-to-think')
     const partial = run()
@@ -74,7 +80,11 @@ test('sample seed resumes interrupted dependencies and entries without rewriting
       ).rows[0]
     const before = await counts()
     assert.equal(before.topics, 1)
-    assert.equal(before.sources, 1)
+    assert.equal(before.sources, 2)
+    assert.deepEqual(
+      (await database.query('SELECT * FROM sources WHERE id=$1', [draft.id])).rows[0],
+      draft,
+    )
     const repeat = run()
     assert.equal(repeat.status, 0, repeat.stdout + repeat.stderr)
     assert.deepEqual(

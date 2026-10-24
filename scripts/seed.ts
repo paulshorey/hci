@@ -80,6 +80,7 @@ try {
           collection: 'sources',
           where: {
             url: { equals: 'https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html' },
+            _status: { equals: 'published' },
           },
           limit: 1,
         })
