@@ -15,7 +15,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Content and database ownership
 
 Read [README.md](README.md) and [the architecture](docs/architecture.md) before
-changing the model. Payload collections/blocks own the schema; generated files
+changing the model. Preserve unrelated work. Payload collections/blocks own the schema; generated files
 are derived. Reordering must retain content blocks, captions, and sources.
 
 Use `pnpm db:migrate` and forward migrations; update generated contracts and the
@@ -35,7 +35,8 @@ Use the full graph for existing environments; never bootstrap an initialized one
 
 # Research and report
 
-If something went wrong, stop and report back. Include all info, data, and logs.
+If something goes wrong, stop the affected operation and report relevant findings, data, and logs.
+Redact secrets and private content.
 If unsure about something, research, search the web, find latest techniques and best practices.
 
 # Next steps
