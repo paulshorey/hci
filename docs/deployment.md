@@ -38,7 +38,7 @@ For a local command against a deployed database, obtain that environment's resol
 
 ## Credentials and first administrator
 
-Local provider operations explicitly select the existing `railway.webarts` profile at `~/.config/railway/webarts.env`; do not print its token. GitHub environments `development` and `production` each use their own environment-scoped `RAILWAY_TOKEN`. Non-secret authoring variables identify the exact project, environment, target and bucket region. Both services use native references to the environment's `assets` bucket.
+Local provider operations use the Railway workspace token `RAILWAY_API_TOKEN`, which every shell exports from `~/.secrets.sh`; unset `RAILWAY_TOKEN` first and do not print the token. GitHub environments `development` and `production` each use their own environment-scoped `RAILWAY_TOKEN`. Non-secret authoring variables identify the exact project, environment, target and bucket region. Both services use native references to the environment's `assets` bucket.
 
 Each web service has a distinct `PAYLOAD_SECRET` and bootstrap password. Each environment also has a distinct embed preview secret. The first administrator email is the authenticated GitHub account's address, `hello@paulshorey.com`. `pnpm cms:bootstrap` runs after migrations and before public startup; it creates the first administrator without logging credentials and leaves existing accounts unchanged. Generated initial credentials are stored only in owner-readable ignored `.local/railway/credentials.json` and the relevant Railway secret variables. Change the administrator passwords after first login. SMTP/password recovery is optional and must be configured before relying on email delivery.
 
