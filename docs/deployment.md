@@ -50,7 +50,7 @@ The full graph enables `CMS_RUN_JOBS=true` only on the persistent web service. P
 
 ## Operations
 
-For an explicitly selected environment, source the profile, unset inherited project tokens, and export the corresponding `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID`, `HCI_RAILWAY_PROJECT_ID`, `HCI_RAILWAY_ENVIRONMENT_ID`, `HCI_RAILWAY_TARGET` (`development` or `production`), `HCI_STORAGE_PROVIDER=railway` and `HCI_BUCKET_REGION=iad`. Use the pinned Node 24/pnpm toolchain and Railway CLI 5.62.1.
+For an explicitly selected environment, require a nonempty `RAILWAY_API_TOKEN` from `~/.secrets.sh`, unset `RAILWAY_TOKEN`, and export the corresponding `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID`, `HCI_RAILWAY_PROJECT_ID`, `HCI_RAILWAY_ENVIRONMENT_ID`, `HCI_RAILWAY_TARGET` (`development` or `production`), `HCI_STORAGE_PROVIDER=railway` and `HCI_BUCKET_REGION=iad`. Clean noninteractive shells must receive the API token explicitly, as described above. Use the pinned Node 24/pnpm toolchain and Railway CLI 5.62.1.
 
 Review a fresh plan, apply it, and require a clean follow-up plan:
 
