@@ -102,7 +102,18 @@ test('the editor shows primary content as standard and adds optional lists throu
   await page.getByRole('button', { name: 'Edit content', exact: true }).click()
   const drawer = page.locator('.doc-drawer').last()
   await expect(drawer).toBeVisible()
+  await expect(drawer.locator('form')).toHaveAttribute('data-form-ready', 'true')
+  // Let the title's server form state settle before adding a row. Otherwise a
+  // stale response can leave the newly added Payload row in its loading state.
+  const titleState = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === `/admin/collections/entries/${entry.id}` &&
+      response.request().method() === 'POST' &&
+      Boolean(response.request().postData()?.includes('"name":"form-state"')) &&
+      Boolean(response.request().postData()?.includes('"value":"Primary revision"')),
+  )
   await drawer.locator('input[name="title"]').fill('Primary revision')
+  await (await titleState).finished()
   await drawer.getByRole('button', { name: /Add.*Item/i }).click()
   await drawer.getByRole('button', { name: /Add.*block/i }).click()
   await page.getByText('Rich Text', { exact: true }).click()
@@ -123,6 +134,10 @@ test('the editor shows primary content as standard and adds optional lists throu
       return (await r.json()).contentLists?.length
     })
     .toBe(2)
+  const saved = await (await page.request.get(`/api/entries/${entry.id}?draft=true&depth=1`)).json()
+  expect(saved.contentLists[0].items[0].content[0].body.root.children[0].children[0].text).toBe(
+    'Primary text written in the editor.',
+  )
   await page.screenshot({ path: '.local/cms-editor-complete.png', fullPage: true })
 })
 
