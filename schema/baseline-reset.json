@@ -1,0 +1,17 @@
+{
+  "description": "User-authorized replacement of the unused experimental blog schema with the relational multimedia CMS baseline on 2026-10-24. This exception permits only deletion of the exact old Git blobs. Future migrations remain immutable.",
+  "previousCommit": "25d3c124ad9006380ff8b4b49804ee6c5c1a8a0e",
+  "removedGitBlobs": {
+    "src/migrations/20261017_012634_initial.json": "1e0e5c5c5f05e14d5b506ae2726b78a7c1d087c9",
+    "src/migrations/20261017_012634_initial.ts": "91ddc70866d3a4f213eb1bbeb3eb3cf3de4a1735",
+    "src/migrations/20261017_013513_media_attribution.json": "448f58a95ab1c9f95a639c32890c894a1a6979b1",
+    "src/migrations/20261017_013513_media_attribution.ts": "4def468ba95808b6fddf52a1bcc57e86a3582665",
+    "src/migrations/20261017_014832_site_time_zone.json": "04bf19493786285c1e0ae0ec61849377d8fd936e",
+    "src/migrations/20261017_014832_site_time_zone.ts": "8548ae075cbb44fdc8cf7e4314a7e25b762716d9",
+    "src/migrations/20261017_015910_featured_embed_captions.json": "9de95f21610d95212925ecccc46787b030c9a4fc",
+    "src/migrations/20261017_015910_featured_embed_captions.ts": "1f31ffbb86a558b61ee15bd8b73209fcae4370b2",
+    "src/migrations/20261017_021056_backfill_featured_embed_captions.ts": "0e712d5f752f96f8e117be4527d06e1c34a82b57",
+    "src/migrations/20261017_030401_editor_media.json": "c53c454fbdf9226e70c9300c4c58ea98dda5dab6",
+    "src/migrations/20261017_030401_editor_media.ts": "2221680bffb7ac98fc1b549106e7119d2f8b25c5"
+  }
+}

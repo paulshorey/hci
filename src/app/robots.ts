@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next'
-import { siteURL } from '@/lib/env'
+import { siteURL } from '@multimedia/cms/lib/env'
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {

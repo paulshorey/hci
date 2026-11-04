@@ -1,15 +1,16 @@
 import Link from 'next/link'
-import type { Post } from '@/generated/payload-types'
-import { ImageContent } from './Content'
+import type { EntrySummary } from '@multimedia/cms/lib/content/queries'
+import { ImageContent } from '@multimedia/renderers'
 import { settings } from '@/lib/content/queries'
 
-export async function PostCard({ post, index }: { post: Post; index: number }) {
+export async function PostCard({ post, index }: { post: EntrySummary; index: number }) {
   const site = await settings()
+  const cover = post.cover
   return (
     <article className="post-card">
       <Link href={`/posts/${post.slug}`} className="card-cover" aria-label={post.title}>
-        {post.featuredImage?.media ? (
-          <ImageContent value={post.featuredImage} card />
+        {cover?.media ? (
+          <ImageContent value={cover!} card />
         ) : (
           <div className={`abstract-cover cover-${index % 3}`}>
             <span>
@@ -33,7 +34,7 @@ export async function PostCard({ post, index }: { post: Post; index: number }) {
             : 'Field note'}
         </time>
         <span>
-          {post.slides?.length || 0} {post.slides?.length === 1 ? 'slide' : 'slides'}
+          {post.itemCount} {post.itemCount === 1 ? 'slide' : 'slides'}
         </span>
       </div>
       <h2>

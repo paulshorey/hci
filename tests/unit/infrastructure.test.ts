@@ -40,6 +40,8 @@ test('infrastructure guards exact targets, preserves named resources and isolate
     assert.equal(embeds.type, 'service')
     if (web.type !== 'service' || embeds.type !== 'service') throw new Error('Expected services')
     assert.equal(web.source?.branch, 'main')
+    assert.deepEqual(web.variables?.CMS_RUN_JOBS, { type: 'literal', value: 'true' })
+    assert(!('CMS_RUN_JOBS' in (embeds.variables || {})))
     assert('PAYLOAD_SECRET' in (web.variables || {}))
     assert(!('PAYLOAD_SECRET' in (embeds.variables || {})))
     for (const service of [web, embeds]) {

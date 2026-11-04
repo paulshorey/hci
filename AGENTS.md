@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Project ownership
 
-Read README.md and docs/architecture.md before changing the content model. Payload collections/blocks own the schema; generated files are derived. Keep posts, slides, content blocks, captions, and sources together when reordering. Preserve unrelated work.
+Read README.md and docs/architecture.md before changing the content model. The reusable CMS lives in packages/multimedia-cms and renderers in packages/multimedia-renderers. The root Next.js application is the HCI client. Payload collections/blocks own the schema; generated files are derived. Entries reference ordered immutable content-list revisions. Keep list items, blocks, captions and sources together when reordering. The first list relation is mandatory; all list contents are optional. Preserve unrelated work.
 
 Use pnpm db:migrate for database changes. Never enable automatic schema push, modify applied migrations, run destructive migration commands on deployed databases, or bypass public access control with Local API defaults. Update generated contracts and the SQL snapshot with forward migrations. Tests use their own disposable local databases.
 

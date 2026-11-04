@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import { getPayload } from 'payload'
 import config from '../src/payload.config'
-import { importBundle, readFolder } from '../src/lib/snippets/bundles'
+import { importBundle, readFolder } from '@multimedia/cms/lib/snippets/bundles'
 
 const [folder, title, entryFile = 'index.html'] = process.argv.slice(2)
 if (!folder || !title)

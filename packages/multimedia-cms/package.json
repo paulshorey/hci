@@ -1,0 +1,31 @@
+{
+  "name": "@multimedia/cms",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/config.ts",
+    "./types": "./src/types.ts",
+    "./admin": "./src/admin/ContentListsField.tsx",
+    "./blocks": "./src/blocks/index.ts",
+    "./collections/*": "./src/collections/*.ts",
+    "./lib/*": "./src/lib/*.ts",
+    "./lib/storage": "./src/lib/storage/index.ts"
+  },
+  "peerDependencies": {
+    "payload": "3.91.0",
+    "@payloadcms/ui": "3.91.0",
+    "react": "19.3.1"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1152.0",
+    "@payloadcms/db-postgres": "3.91.0",
+    "@payloadcms/email-nodemailer": "3.91.0",
+    "@payloadcms/richtext-lexical": "3.91.0",
+    "@payloadcms/storage-s3": "3.91.0",
+    "dotenv": "18.0.8",
+    "mime-types": "3.0.2",
+    "sharp": "0.35.5",
+    "yauzl": "3.4.0"
+  }
+}

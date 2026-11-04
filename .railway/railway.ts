@@ -38,6 +38,7 @@ export default defineRailway((ctx) => {
     source: { repo: 'paulshorey/hci', branch },
     env: {
       ...common,
+      CMS_RUN_JOBS: 'true',
       PAYLOAD_SECRET: preserve(),
       CMS_BOOTSTRAP_EMAIL: preserve(),
       CMS_BOOTSTRAP_PASSWORD: preserve(),
