@@ -1,3 +1,7 @@
+# Project: HCI multimedia publishing
+
+Reusable research blog and multimedia CMS built with Next.js, Payload, and PostgreSQL.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know
@@ -8,12 +12,40 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-## Project ownership
+## Content and database ownership
 
-Read README.md and docs/architecture.md before changing the content model. The reusable CMS lives in packages/multimedia-cms and renderers in packages/multimedia-renderers. The root Next.js application is the HCI client. Payload collections/blocks own the schema; generated files are derived. Entries reference ordered immutable content-list revisions. Keep list items, blocks, captions and sources together when reordering. The first list relation is mandatory; all list contents are optional. Preserve unrelated work.
+Read [README.md](README.md) and [the architecture](docs/architecture.md) before
+changing the model. Preserve unrelated work. The reusable CMS lives in
+`packages/multimedia-cms` and renderers in `packages/multimedia-renderers`; the
+root Next.js application is the HCI client. Payload collections/blocks own the
+schema; generated files are derived. Entries reference ordered immutable
+content-list revisions. Reordering must retain list items, blocks, captions, and
+sources. The first list relation is mandatory; all list contents are optional.
 
-Use pnpm db:migrate for database changes. Never enable automatic schema push, modify applied migrations, run destructive migration commands on deployed databases, or bypass public access control with Local API defaults. Update generated contracts and the SQL snapshot with forward migrations. Tests use their own disposable local databases.
+Use `pnpm db:migrate` and forward migrations; update generated contracts and the
+SQL snapshot together. Never enable schema push, edit applied migrations, run
+destructive commands on deployed databases, or bypass public access controls
+through Local API defaults. Tests use disposable local databases.
 
-Executable bundles must remain on a separate origin without CMS routes/cookies. Keep validated imports, immutable file manifests, publishing checks, and short-lived draft preview access intact. Do not relax sandbox policies to make arbitrary external dependencies load.
+## Publishing and deployment
 
-Run the relevant checks documented in README.md. HCI's selected live Railway project, environments, immutable bucket region, domains and credential references are documented in docs/deployment.md. Verify that exact target before operating it. Use the full graph for existing environments; do not apply bootstrap configuration to an initialized environment.
+Executable bundles stay on a separate origin without CMS routes/cookies. Preserve
+validated imports, immutable manifests, publishing checks, short-lived draft
+previews, and sandbox restrictions on external dependencies.
+
+Run relevant README checks. Verify the exact Railway project, environment, bucket
+region, domains, and credential references in [docs/deployment.md](docs/deployment.md).
+Use the full graph for existing environments; never bootstrap an initialized one.
+
+# Research and report
+
+If something goes wrong, stop the affected operation and report relevant findings, data, and logs.
+Redact secrets and private content.
+If unsure about something, research, search the web, find latest techniques and best practices.
+
+# Next steps
+
+Consider what was recently done, what's in progress, and how it contributes to the goal.
+Decide and recommend what to do next.
+
+# Goal: Publish reusable, source-backed research with rich multimedia
