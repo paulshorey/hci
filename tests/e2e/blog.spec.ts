@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page, type Request } from '@playwright/test'
 
 async function login(page: Page, role: 'admin' | 'editor' = 'admin') {
   const email = role === 'editor' ? process.env.HCI_E2E_EDITOR_EMAIL! : process.env.HCI_E2E_EMAIL!
@@ -103,18 +103,25 @@ test('the editor shows primary content as standard and adds optional lists throu
   const drawer = page.locator('.doc-drawer').last()
   await expect(drawer).toBeVisible()
   await expect(drawer.locator('form')).toHaveAttribute('data-form-ready', 'true')
-  // Let the title's server form state settle before adding a row. Otherwise a
-  // stale response can leave the newly added Payload row in its loading state.
-  const titleState = page.waitForResponse(
-    (response) =>
-      new URL(response.url()).pathname === `/admin/collections/entries/${entry.id}` &&
-      response.request().method() === 'POST' &&
-      Boolean(response.request().postData()?.includes('"name":"form-state"')) &&
-      Boolean(response.request().postData()?.includes('"value":"Primary revision"')),
-  )
+  // Reproduce a slow title-validation request arriving after a row is added.
+  const titleChange = (request: Request) =>
+    request.method() === 'POST' &&
+    Boolean(request.postData()?.includes('"name":"form-state"')) &&
+    Boolean(request.postData()?.includes('"value":"Primary revision"'))
+  let releaseTitle!: () => void
+  const titleRelease = new Promise<void>((resolve) => (releaseTitle = resolve))
+  await page.route(`**/admin/collections/entries/${entry.id}`, async (route) => {
+    if (titleChange(route.request())) await titleRelease
+    await route.continue()
+  })
+  const titleRequest = page.waitForRequest(titleChange)
   await drawer.locator('input[name="title"]').fill('Primary revision')
-  await (await titleState).finished()
-  await drawer.getByRole('button', { name: /Add.*Item/i }).click()
+  await titleRequest
+  try {
+    await drawer.getByRole('button', { name: /Add.*Item/i }).click()
+  } finally {
+    releaseTitle()
+  }
   await drawer.getByRole('button', { name: /Add.*block/i }).click()
   await page.getByText('Rich Text', { exact: true }).click()
   await drawer.locator('[contenteditable="true"]').fill('Primary text written in the editor.')

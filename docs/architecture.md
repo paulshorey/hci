@@ -22,6 +22,8 @@ This avoids a parent version pointing at a mutable child. Draft changes, schedul
 
 Unused, unsealed editor-created lists remain private and may be removed by an administrator. Sealed records are retained for history. There is no automatic destructive garbage collector; future pruning must reconcile current entries, entry versions and asset references first.
 
+Payload UI 3.91 has a pending form-state race that can leave newly added array/block rows loading when an older response arrives. A pinned pnpm patch keeps only those uninitialized rows pending for a follow-up form-state request, preserving local values and normal settled-state behavior. The unit regression and editor browser test cover the delayed-response sequence and saved content. Remove the patch only after an upstream fix passes both tests; see Payload issues [#18425](https://github.com/payloadcms/payload/issues/18425) and [#18638](https://github.com/payloadcms/payload/issues/18638).
+
 ## Publishing and permissions
 
 Public entry access requires both `_status=published` and `visibility=public`. Authenticated editors can read private entries and drafts. Draft preview requires authentication on every read, is dynamic, and is noindex. CMS user relationships and source research notes are private. Public Local API operations explicitly set `overrideAccess:false`.

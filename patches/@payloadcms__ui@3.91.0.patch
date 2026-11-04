@@ -1,0 +1,36 @@
+diff --git a/dist/exports/client/index.js b/dist/exports/client/index.js
+--- a/dist/exports/client/index.js
++++ b/dist/exports/client/index.js
+@@ -97 +97,17 @@
+ //# sourceMappingURL=index.js.map
++
++// Payload 3.91 also bundles fieldReducer into this client entry point. Its
++// internal Form and public fieldReducer export share the Id binding.
++// Keep a row added during a pending response eligible for initialization.
++const reduceBeforePendingRowFix = Id;
++Id = function reduceWithPendingRows(state, action) {
++  const next = reduceBeforePendingRowFix(state, action);
++  if (action.type === 'MERGE_SERVER_STATE') {
++    const pendingRows = Object.entries(next).some(([path, field]) =>
++      field?.rows?.some(row => row.isLoading &&
++        !action.serverState?.[path]?.rows?.some(incoming => incoming.id === row.id))
++    );
++    if (pendingRows) action.prevStateRef.current = {};
++  }
++  return next;
++};
+diff --git a/dist/forms/Form/fieldReducer.js b/dist/forms/Form/fieldReducer.js
+--- a/dist/forms/Form/fieldReducer.js
++++ b/dist/forms/Form/fieldReducer.js
+@@ -209,3 +209,10 @@
+         });
+-        prevStateRef.current = newState;
++        // A stale response must not mark a newly added loading row as handled.
++        // Leave it dirty so Form's debounce requests the missing row fields.
++        // Payload issues #18425 and #18638; remove after the upstream fix lands.
++        const pendingRows = Object.entries(newState).some(([path, field]) =>
++          field?.rows?.some(row => row.isLoading &&
++            !serverState?.[path]?.rows?.some(incoming => incoming.id === row.id))
++        );
++        prevStateRef.current = pendingRows ? {} : newState;
+         return newState;
