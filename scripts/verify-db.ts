@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import { Client } from 'pg'
 import { schemaSnapshot } from './snapshot-db'
-import { required } from '../src/lib/env'
+import { required } from '@multimedia/cms/lib/env'
 
 const baseURL = new URL(required('HCI_TEST_DATABASE_URL'))
 if (
@@ -38,7 +38,19 @@ try {
     env: { ...process.env, DB_HCI_URL: target.href },
   })
   execFileSync('pnpm', ['generate:types'], { stdio: 'inherit' })
-  execFileSync('git', ['diff', '--exit-code', '--', 'src/generated'], { stdio: 'inherit' })
+  execFileSync(
+    'git',
+    [
+      'diff',
+      '--exit-code',
+      '--',
+      'packages/multimedia-cms/src/generated',
+      'src/app/(payload)/admin/importMap.js',
+    ],
+    {
+      stdio: 'inherit',
+    },
+  )
   console.log('Fresh-database migrations, Payload schema, and generated contracts verified.')
 } finally {
   await client.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`)

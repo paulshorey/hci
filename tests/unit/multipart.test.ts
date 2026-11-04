@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { bundleFormData } from '../../src/lib/snippets/multipart'
+import { bundleFormData } from '@multimedia/cms/lib/snippets/multipart'
 
 test('bundle multipart parsing bounds bodies even without a Content-Length header', async () => {
   const form = new FormData()

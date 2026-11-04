@@ -5,7 +5,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Client } from 'pg'
-import { required } from '../src/lib/env'
+import { required } from '@multimedia/cms/lib/env'
 
 const url = new URL(required('HCI_TEST_DATABASE_URL'))
 if (
