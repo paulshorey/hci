@@ -44,7 +44,9 @@ Each web service has a distinct `PAYLOAD_SECRET` and bootstrap password. Each en
 
 ## Multimedia CMS cutover
 
-The multimedia CMS replacement uses a fresh baseline. Follow [the one-time reset runbook](cms-reset.md) before releasing it; ordinary startup must never discard an existing database. The local experimental schema was backed up and reset on 2026-10-24. Railway reset and release still require verified access to the exact environments above. Keep this change off `main` and `prod` until that coordinated cutover is possible.
+The multimedia CMS replacement uses a fresh baseline. The local experimental schema was backed up and reset on 2026-10-24. The development cutover completed on 2026-11-03 after owner editor acceptance: a logical backup was restored into isolated PostgreSQL 17, the guarded reset took another backup, and migrations/bootstrap installed the CMS baseline. Both development services deployed successfully, with migration checksums, health, administrator access and the editor verified. Existing CMS installations use ordinary forward migrations; startup never discards an existing database.
+
+Production remains on the older `prod` branch. Follow [the one-time reset runbook](cms-reset.md) against the verified production target before coordinating the full `main` to `prod` promotion. Preserve the production database service, volume and bucket. Old PR preview databases may also retain the legacy schema and correctly fail the migration guard; they are temporary environments retired by Railway when their PRs merge or close, rather than a reason to bypass that guard.
 
 The full graph enables `CMS_RUN_JOBS=true` only on the persistent web service. Payload processes native scheduled publish/unpublish jobs every minute. The isolated embed service does not execute editorial jobs.
 
