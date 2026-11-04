@@ -1,7 +1,7 @@
 import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
 import { cms } from '@/lib/content/queries'
-import { SnippetContent } from '@/components/Content'
+import { SnippetContent } from '@multimedia/renderers'
 export const metadata = { title: 'Interactive preview', robots: { index: false, follow: false } }
 export default async function SnippetPreview({
   searchParams,

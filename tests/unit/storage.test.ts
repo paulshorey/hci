@@ -6,7 +6,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { S3Client } from '@aws-sdk/client-s3'
-import { DiskStorage, S3Storage } from '../../src/lib/storage/index'
+import { DiskStorage, S3Storage } from '@multimedia/cms/lib/storage/index'
 
 test('disk objects are immutable and reject unsafe keys', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'hci-storage-'))

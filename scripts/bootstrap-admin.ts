@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import { getPayload } from 'payload'
 import config from '../src/payload.config'
-import { required } from '../src/lib/env'
+import { required } from '@multimedia/cms/lib/env'
 
 const payload = await getPayload({ config })
 try {

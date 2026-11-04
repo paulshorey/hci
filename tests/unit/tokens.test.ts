@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { previewToken, validPreviewToken } from '../../src/lib/snippets/tokens'
-import { externalVideo } from '../../src/lib/content/publication'
+import { previewToken, validPreviewToken } from '@multimedia/cms/lib/snippets/tokens'
+import { externalVideo } from '@multimedia/cms/lib/content/publication'
 
 test('preview capabilities are bound to a bundle and expire after fifteen minutes', () => {
   const now = 1800000000000

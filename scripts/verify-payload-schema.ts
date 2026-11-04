@@ -5,7 +5,7 @@ import { getTableConfig } from '@payloadcms/db-postgres/drizzle/pg-core'
 import { getPayload } from 'payload'
 import { Client } from 'pg'
 import config from '../src/payload.config'
-import { required } from '../src/lib/env'
+import { required } from '@multimedia/cms/lib/env'
 
 const payload = await getPayload({ config })
 const client = new Client({ connectionString: required('DB_HCI_URL') })
@@ -83,11 +83,11 @@ try {
       )
   }
   const constraints = await client.query(
-    "SELECT indexdef FROM pg_indexes WHERE tablename = 'posts'",
+    "SELECT indexdef FROM pg_indexes WHERE tablename = 'entries'",
   )
   assert(
     constraints.rows.some((row) => /UNIQUE.*slug/.test(row.indexdef)),
-    'Post slug must have a unique index.',
+    'Entry slug must have a unique index.',
   )
   await client.query('SELECT storage_prefix, entry_file, manifest, _status FROM snippets LIMIT 0')
   console.log('Payload tables and embed-server SQL contract verified.')

@@ -7,7 +7,7 @@ import { getPayload } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
 import config from '../src/payload.config'
 import { migrations } from '../src/migrations/index'
-import { required } from '../src/lib/env'
+import { required } from '@multimedia/cms/lib/env'
 
 export async function migrate(available = migrations) {
   const client = new Client({ connectionString: required('DB_HCI_URL') })
@@ -16,8 +16,15 @@ export async function migrate(available = migrations) {
   try {
     await client.query("SET statement_timeout = '60s'")
     await client.query('SELECT pg_advisory_lock(728451602)')
+    const legacy = await client.query(
+      "SELECT to_regclass('public.hci_migration_checksums') AS ledger, to_regclass('public.posts') AS posts",
+    )
+    if (legacy.rows[0].ledger || legacy.rows[0].posts)
+      throw new Error(
+        'The experimental blog schema requires the explicitly authorized one-time reset. See docs/cms-reset.md.',
+      )
     await client.query(
-      `CREATE TABLE IF NOT EXISTS hci_migration_checksums (name text PRIMARY KEY, checksum text NOT NULL)`,
+      `CREATE TABLE IF NOT EXISTS cms_migration_checksums (name text PRIMARY KEY, checksum text NOT NULL)`,
     )
     const hashes = new Map<string, string>()
     for (const migration of available) {
@@ -27,7 +34,7 @@ export async function migrate(available = migrations) {
       hashes.set(migration.name, createHash('sha256').update(bytes).digest('hex'))
     }
     const known = await client.query<{ name: string; checksum: string }>(
-      'SELECT name, checksum FROM hci_migration_checksums',
+      'SELECT name, checksum FROM cms_migration_checksums',
     )
     for (const row of known.rows)
       if (hashes.get(row.name) !== row.checksum)
@@ -55,7 +62,7 @@ export async function migrate(available = migrations) {
           const args = input as Parameters<typeof migration.up>[0]
           await migration.up(args)
           await args.db.execute(
-            sql`INSERT INTO hci_migration_checksums (name, checksum) VALUES (${migration.name}, ${hashes.get(migration.name)!})`,
+            sql`INSERT INTO cms_migration_checksums (name, checksum) VALUES (${migration.name}, ${hashes.get(migration.name)!})`,
           )
         },
       })),
