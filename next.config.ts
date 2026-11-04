@@ -3,6 +3,7 @@ import type { NextConfig } from 'next'
 
 const config: NextConfig = {
   poweredByHeader: false,
+  transpilePackages: ['@multimedia/cms', '@multimedia/renderers'],
   async headers() {
     return [
       {

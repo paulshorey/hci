@@ -66,6 +66,8 @@ The Postgres image is pinned to major 17. The application build runs without rea
 
 The embed health check waits up to 300 seconds for its required schema. On the first deployment its smaller build can finish before the web build and pre-deploy migrations; it remains unready until those tables exist. Migration credentials and CMS authentication secrets stay on the web service.
 
+The web service sets `CMS_RUN_JOBS=true` to process scheduled publishing every minute. Do not enable the worker on the read-only embed service. The experimental-to-CMS release also requires the [one-time schema cutover](../docs/cms-reset.md); normal pre-deploy migrations intentionally refuse the old baseline.
+
 ## Plan, apply, verify
 
 ```sh

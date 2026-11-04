@@ -1,8 +1,8 @@
 import 'dotenv/config'
 import { createServer } from 'node:http'
 import { Pool } from 'pg'
-import { embedOrigin, required, siteURL } from '../../src/lib/env'
-import { objectStorage } from '../../src/lib/storage/index'
+import { embedOrigin, required, siteURL } from '@multimedia/cms/lib/env'
+import { objectStorage } from '@multimedia/cms/lib/storage/index'
 import { embedHandler, type BundleDescriptor } from './handler'
 
 embedOrigin()

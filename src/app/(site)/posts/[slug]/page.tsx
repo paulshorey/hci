@@ -1,17 +1,10 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
-import { RichText } from '@payloadcms/richtext-lexical/react'
 import { postBySlug, settings } from '@/lib/content/queries'
-import {
-  ImageContent,
-  VideoContent,
-  SnippetContent,
-  ContentBlock,
-  mediaDocument,
-  SourceAttachments,
-} from '@/components/Content'
-import { Slideshow } from '@/components/Slideshow'
+import { mediaDocument, SourceAttachments } from '@multimedia/renderers'
+import { ContentLists } from '@multimedia/renderers/lists'
+import { firstImage, entryLists, itemCount } from '@multimedia/cms/lib/content/delivery'
 
 export async function generateMetadata({
   params,
@@ -20,7 +13,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { post, preview } = await postBySlug((await params).slug)
   if (!post) return {}
-  const image = mediaDocument(post.featuredImage?.media)
+  const image = mediaDocument(firstImage(post)?.media)
   return {
     title: post.seo?.title || post.title,
     description: post.seo?.description || post.summary,
@@ -28,7 +21,7 @@ export async function generateMetadata({
     robots: preview ? { index: false, follow: false } : undefined,
     openGraph: {
       title: post.title,
-      description: post.summary,
+      description: post.summary || undefined,
       type: 'article',
       publishedTime: post.publishedAt || undefined,
       images: image?.url ? [image.url] : [],
@@ -74,49 +67,15 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
             </time>
           )}
           <span>
-            {post.slides?.length || 0} {post.slides?.length === 1 ? 'slide' : 'slides'}
+            {itemCount(entryLists(post).filter((list) => list.presentation === 'carousel'))}{' '}
+            {itemCount(entryLists(post).filter((list) => list.presentation === 'carousel')) === 1
+              ? 'slide'
+              : 'slides'}
           </span>
         </div>
       </header>
       <div className="article-body">
-        {post.featuredImage?.media && <ImageContent value={post.featuredImage} />}
-        {(post.featuredVideo?.media || post.featuredVideo?.url) && (
-          <VideoContent value={post.featuredVideo} />
-        )}
-        {post.body && (
-          <div className="prose article-prose">
-            <RichText data={post.body} />
-          </div>
-        )}
-        {post.featuredLink && (
-          <a
-            className="featured-link"
-            href={post.featuredLink}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Open featured reference ↗
-          </a>
-        )}
-        {post.featuredSnippet && (
-          <SnippetContent
-            value={post.featuredSnippet}
-            title={`${post.title}: interactive`}
-            caption={post.featuredSnippetCaption}
-            source={post.featuredSnippetSource}
-            preview={preview}
-          />
-        )}
-        <Slideshow
-          slides={(post.slides || []).map((slide, index) => ({
-            id: slide.id || String(index + 1),
-            title: slide.title || `Observation ${index + 1}`,
-            layout: slide.layout,
-            content: slide.content.map((block) => (
-              <ContentBlock key={block.id} block={block} preview={preview} />
-            )),
-          }))}
-        />
+        <ContentLists lists={entryLists(post)} preview={preview} />
         {!!post.sources?.length && (
           <section className="sources">
             <span className="eyebrow">Research trail</span>

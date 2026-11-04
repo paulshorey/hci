@@ -1,0 +1,15 @@
+{
+  "name": "@multimedia/renderers",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/Content.tsx",
+    "./lists": "./src/Lists.tsx"
+  },
+  "peerDependencies": {
+    "@multimedia/cms": "workspace:*",
+    "react": "19.3.1",
+    "@payloadcms/richtext-lexical": "3.91.0"
+  }
+}

@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   if (!user) return new Response('Sign in to Payload before opening a preview.', { status: 401 })
   const slug = new URL(request.url).searchParams.get('slug') || ''
   const result = await payload.find({
-    collection: 'posts',
+    collection: 'entries',
     draft: true,
     user,
     overrideAccess: false,
