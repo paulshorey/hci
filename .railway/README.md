@@ -10,7 +10,10 @@ Use a dedicated HCI project or the named `hci` partial within an explicitly sele
 
 Before provisioning, decide the workspace/project, development and production environment IDs, public hostnames, and bucket region. Bucket region is required and immutable. Keep `HCI_STORAGE_PROVIDER=railway` (the default). An optional `external-s3` path is retained for future provider migrations; switching it on an initialized graph can remove the owned Railway bucket and requires a separate verified data migration. The file refuses to evaluate without exact project/environment guards and a target of `development` or `production`.
 
-Use the workspace's explicit local credential profile. Keep project/environment tokens and all secret values outside Git. Authenticate and verify the selected project before planning. A valid local type-check is not proof of provider access.
+On Paul’s Mac, use the workspace token `RAILWAY_API_TOKEN` exported from
+`~/.secrets.sh`. Clean noninteractive shells must receive it explicitly;
+`~/.shortcuts.sh` defines shell helpers, not Railway credentials. Unset
+`RAILWAY_TOKEN` for workspace operations and require a nonempty API token. Keep secret values outside Git. Verify the selected project before planning; a type-check does not prove access.
 
 Pinned authoring SDK: `railway@3.16.0`. CI native CLI: `5.62.1`. Runtime: Node 24 / pnpm 10.28.1. Infrastructure is `.railway/railway.ts`; do not point the legacy Railway Config File setting at it.
 
