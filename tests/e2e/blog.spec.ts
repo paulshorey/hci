@@ -104,10 +104,11 @@ test('the editor shows primary content as standard and adds optional lists throu
   await expect(drawer).toBeVisible()
   await expect(drawer.locator('form')).toHaveAttribute('data-form-ready', 'true')
   // Reproduce a slow title-validation request arriving after a row is added.
-  const titleChange = (request: Request) =>
+  const formStateWith = (text: string) => (request: Request) =>
     request.method() === 'POST' &&
     Boolean(request.postData()?.includes('"name":"form-state"')) &&
-    Boolean(request.postData()?.includes('"value":"Primary revision"'))
+    Boolean(request.postData()?.includes(text))
+  const titleChange = formStateWith('"value":"Primary revision"')
   let releaseTitle!: () => void
   const titleRelease = new Promise<void>((resolve) => (releaseTitle = resolve))
   await page.route(`**/admin/collections/entries/${entry.id}`, async (route) => {
@@ -124,7 +125,12 @@ test('the editor shows primary content as standard and adds optional lists throu
   }
   await drawer.getByRole('button', { name: /Add.*block/i }).click()
   await page.getByText('Rich Text', { exact: true }).click()
+  // Rich text reaches form state after a debounce; saving earlier submits an empty body.
+  const bodyState = page.waitForResponse((response) =>
+    formStateWith('Primary text written in the editor.')(response.request()),
+  )
   await drawer.locator('[contenteditable="true"]').fill('Primary text written in the editor.')
+  await bodyState
   await drawer.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(drawer).not.toBeVisible()
   await page.getByRole('button', { name: 'Add another content list', exact: true }).click()
