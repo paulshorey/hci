@@ -10,7 +10,10 @@ Use a dedicated HCI project or the named `hci` partial within an explicitly sele
 
 Before provisioning, decide the workspace/project, development and production environment IDs, public hostnames, and bucket region. Bucket region is required and immutable. Keep `HCI_STORAGE_PROVIDER=railway` (the default). An optional `external-s3` path is retained for future provider migrations; switching it on an initialized graph can remove the owned Railway bucket and requires a separate verified data migration. The file refuses to evaluate without exact project/environment guards and a target of `development` or `production`.
 
-Use the workspace's explicit local credential profile. Keep project/environment tokens and all secret values outside Git. Authenticate and verify the selected project before planning. A valid local type-check is not proof of provider access.
+On Paul’s Mac, use the workspace token `RAILWAY_API_TOKEN` exported from
+`~/.secrets.sh`. Clean noninteractive shells must receive it explicitly;
+`~/.shortcuts.sh` defines shell helpers, not Railway credentials. Unset
+`RAILWAY_TOKEN` for workspace operations and require a nonempty API token. Keep secret values outside Git. Verify the selected project before planning; a type-check does not prove access.
 
 Pinned authoring SDK: `railway@3.16.0`. CI native CLI: `5.62.1`. Runtime: Node 24 / pnpm 10.28.1. Infrastructure is `.railway/railway.ts`; do not point the legacy Railway Config File setting at it.
 
@@ -65,6 +68,8 @@ This creates the named database, Railway bucket, and empty web/embed services wi
 The Postgres image is pinned to major 17. The application build runs without reading the database, and pre-deploy runs `pnpm db:migrate` using `DB_HCI_URL`. Both application services reference `postgres.env.DATABASE_PUBLIC_URL` through that project-specific key. Generic `DATABASE_URL` is reserved for Railway's PostgreSQL service output and is never an application fallback. Public PostgreSQL TCP proxies must be enabled in each environment; inspect existing proxies before using `railway tcp-proxy create --port 5432`. See [the live connection contract](../docs/deployment.md#database-connection-contract) for current endpoints and ownership. Ensure the built image retains `src/migrations`, the scripts, and runtime dependencies. Public media delivery uses five-minute signed bucket URLs after authorization; authenticated editor delivery and isolated bundles remain proxied. Neither service requires a writable application filesystem with S3 storage. Avoid persistent disk configuration across these two separate containers.
 
 The embed health check waits up to 300 seconds for its required schema. On the first deployment its smaller build can finish before the web build and pre-deploy migrations; it remains unready until those tables exist. Migration credentials and CMS authentication secrets stay on the web service.
+
+The web service sets `CMS_RUN_JOBS=true` to process scheduled publishing every minute. Do not enable the worker on the read-only embed service. The experimental-to-CMS release also requires the [one-time schema cutover](../docs/cms-reset.md); normal pre-deploy migrations intentionally refuse the old baseline.
 
 ## Plan, apply, verify
 

@@ -38,13 +38,21 @@ For a local command against a deployed database, obtain that environment's resol
 
 ## Credentials and first administrator
 
-Local provider operations explicitly select the existing `railway.webarts` profile at `~/.config/railway/webarts.env`; do not print its token. GitHub environments `development` and `production` each use their own environment-scoped `RAILWAY_TOKEN`. Non-secret authoring variables identify the exact project, environment, target and bucket region. Both services use native references to the environment's `assets` bucket.
+Local provider operations use `RAILWAY_API_TOKEN` from `~/.secrets.sh`; unset `RAILWAY_TOKEN`, require a nonempty API token, and do not print it. Clean noninteractive shells must receive the token explicitly. GitHub environments `development` and `production` each use their own environment-scoped `RAILWAY_TOKEN`. Non-secret authoring variables identify the exact project, environment, target and bucket region. Both services use native references to the environment's `assets` bucket.
 
 Each web service has a distinct `PAYLOAD_SECRET` and bootstrap password. Each environment also has a distinct embed preview secret. The first administrator email is the authenticated GitHub account's address, `hello@paulshorey.com`. `pnpm cms:bootstrap` runs after migrations and before public startup; it creates the first administrator without logging credentials and leaves existing accounts unchanged. Generated initial credentials are stored only in owner-readable ignored `.local/railway/credentials.json` and the relevant Railway secret variables. Change the administrator passwords after first login. SMTP/password recovery is optional and must be configured before relying on email delivery.
 
+## Multimedia CMS cutover
+
+The multimedia CMS replacement uses a fresh baseline. The local experimental schema was backed up and reset on 2026-10-24. The development cutover completed on 2026-11-03 after owner editor acceptance: a logical backup was restored into isolated PostgreSQL 17, the guarded reset took another backup, and migrations/bootstrap installed the CMS baseline. Both development services deployed successfully, with migration checksums, health, administrator access and the editor verified. Existing CMS installations use ordinary forward migrations; startup never discards an existing database.
+
+Production remains on the older `prod` branch. Follow [the one-time reset runbook](cms-reset.md) against the verified production target before coordinating the full `main` to `prod` promotion. Preserve the production database service, volume and bucket. Old PR preview databases may also retain the legacy schema and correctly fail the migration guard; they are temporary environments retired by Railway when their PRs merge or close, rather than a reason to bypass that guard.
+
+The full graph enables `CMS_RUN_JOBS=true` only on the persistent web service. Payload processes native scheduled publish/unpublish jobs every minute. The isolated embed service does not execute editorial jobs.
+
 ## Operations
 
-For an explicitly selected environment, source the profile, unset inherited project tokens, and export the corresponding `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID`, `HCI_RAILWAY_PROJECT_ID`, `HCI_RAILWAY_ENVIRONMENT_ID`, `HCI_RAILWAY_TARGET` (`development` or `production`), `HCI_STORAGE_PROVIDER=railway` and `HCI_BUCKET_REGION=iad`. Use the pinned Node 24/pnpm toolchain and Railway CLI 5.62.1.
+For an explicitly selected environment, require a nonempty `RAILWAY_API_TOKEN` from `~/.secrets.sh`, unset `RAILWAY_TOKEN`, and export the corresponding `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID`, `HCI_RAILWAY_PROJECT_ID`, `HCI_RAILWAY_ENVIRONMENT_ID`, `HCI_RAILWAY_TARGET` (`development` or `production`), `HCI_STORAGE_PROVIDER=railway` and `HCI_BUCKET_REGION=iad`. Clean noninteractive shells must receive the API token explicitly, as described above. Use the pinned Node 24/pnpm toolchain and Railway CLI 5.62.1.
 
 Review a fresh plan, apply it, and require a clean follow-up plan:
 

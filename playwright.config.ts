@@ -4,7 +4,11 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   timeout: 45000,
-  use: { baseURL: 'http://localhost:4500', trace: 'retain-on-failure' },
+  use: {
+    baseURL: 'http://localhost:4500',
+    extraHTTPHeaders: { Origin: 'http://localhost:4500' },
+    trace: 'retain-on-failure',
+  },
   reporter: [['list'], ['html', { open: 'never' }]],
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: [

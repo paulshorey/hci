@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import { randomUUID } from 'node:crypto'
-import { objectStorage } from '../src/lib/storage'
-import { storageDriver } from '../src/lib/env'
+import { objectStorage } from '@multimedia/cms/lib/storage'
+import { storageDriver } from '@multimedia/cms/lib/env'
 
 const storage = objectStorage()
 const key = `probes/${randomUUID()}/check.txt`

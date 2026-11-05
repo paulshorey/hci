@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { cms } from '@/lib/content/queries'
-import { mediaUploadLimitMB } from '@/lib/env'
+import { mediaUploadLimitMB } from '@multimedia/cms/lib/env'
 
 export const metadata = { title: 'Editor guide', robots: { index: false, follow: false } }
 
@@ -15,7 +15,7 @@ export default async function EditorGuide() {
       <h1>Add and organize your evidence.</h1>
       <p>
         Everything in an article can be entered here manually. Upload files once, then reuse them in
-        articles, slides and sources.
+        entries, content lists and sources.
       </p>
       <ol>
         <li>
@@ -31,10 +31,10 @@ export default async function EditorGuide() {
           of the public site.
         </li>
         <li>
-          <Link href="/admin/collections/posts">Write an article</Link>. Its featured content and
-          body are independent from the slides. Add as many slides and content blocks as you need. A
-          slide may contain several screenshots, video, audio, text, links, downloads and
-          interactive bundles together.
+          <Link href="/admin/collections/entries">Write an article</Link>. The primary content
+          section is always present and may be empty. Edit it to add text, images, video, audio,
+          links, files or interactive bundles. Add optional content lists for carousels,
+          comparisons, resources or any other material. Every list supports the same content types.
         </li>
         <li>
           Add captions, image descriptions and optional transcripts. Use the comparison layout for
@@ -53,12 +53,15 @@ export default async function EditorGuide() {
         relative files at the ZIP root. Preview and publish the imported bundle, then select it in
         an Embed block.
       </p>
-      <h2>Revising published evidence</h2>
+      <h2>Drafts, publishing and scheduled releases</h2>
       <p>
-        Published references protect their files from replacement or removal. Upload a revised file
-        or bundle as a new record, then choose it in the article or source. A newer draft does not
-        change the evidence in the live version. Folder changes only organize the library; they do
-        not move stored files or break links.
+        Editing content creates a new revision automatically. Save a draft, preview it, and publish
+        when ready; older entry versions retain their exact list revisions. Use the publishing
+        controls to schedule a future publish or unpublish. Editorial-team-only entries remain
+        private even when published. Published references protect their files from replacement or
+        removal. Upload a revised file or bundle as a new record, then choose it in the article or
+        source. A newer draft does not change the evidence in the live version. Folder changes only
+        organize the library; they do not move stored files or break links.
       </p>
       <p>
         Browser video/audio support depends on codecs. For long videos or files above the upload

@@ -1,9 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { createHash } from 'node:crypto'
-import type { ObjectStorage } from '../../src/lib/storage/index'
-import { safeRelativePath } from '../../src/lib/storage/index'
-import { validPreviewToken } from '../../src/lib/snippets/tokens'
-import type { Manifest } from '../../src/lib/snippets/bundles'
+import type { ObjectStorage } from '@multimedia/cms/lib/storage/index'
+import { safeRelativePath } from '@multimedia/cms/lib/storage/index'
+import { validPreviewToken } from '@multimedia/cms/lib/snippets/tokens'
+import type { Manifest } from '@multimedia/cms/lib/snippets/bundles'
 
 export type BundleDescriptor = {
   storage_prefix: string
