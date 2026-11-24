@@ -31,8 +31,10 @@ export async function generateMetadata({
 
 export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { post, preview } = await postBySlug((await params).slug)
-  const site = await settings()
   if (!post) notFound()
+  const site = await settings()
+  const lists = entryLists(post)
+  const slides = itemCount(lists.filter((list) => list.presentation === 'carousel'))
   return (
     <article className="post-page">
       {preview && (
@@ -66,16 +68,15 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
               })}
             </time>
           )}
-          <span>
-            {itemCount(entryLists(post).filter((list) => list.presentation === 'carousel'))}{' '}
-            {itemCount(entryLists(post).filter((list) => list.presentation === 'carousel')) === 1
-              ? 'slide'
-              : 'slides'}
-          </span>
+          {slides > 0 && (
+            <span>
+              {slides} {slides === 1 ? 'slide' : 'slides'}
+            </span>
+          )}
         </div>
       </header>
       <div className="article-body">
-        <ContentLists lists={entryLists(post)} preview={preview} />
+        <ContentLists lists={lists} preview={preview} />
         {!!post.sources?.length && (
           <section className="sources">
             <span className="eyebrow">Research trail</span>
