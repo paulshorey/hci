@@ -116,9 +116,12 @@ export const ContentListsField: RelationshipFieldClientComponent = ({ path, read
   const card = (index: number) => {
     const doc = docs[ids[index]]
     const count = doc?.items?.length || 0
+    const title = index === 0 ? 'Primary content' : doc?.title || 'Additional content'
     return (
       <div
         key={ids[index] || 'primary'}
+        role="group"
+        aria-label={title}
         style={{
           border: '1px solid var(--theme-elevation-200)',
           borderRadius: 5,
@@ -126,7 +129,7 @@ export const ContentListsField: RelationshipFieldClientComponent = ({ path, read
           marginBottom: '1rem',
         }}
       >
-        <strong>{index === 0 ? 'Primary content' : doc?.title || 'Additional content'}</strong>
+        <strong>{title}</strong>
         <p>
           {doc
             ? `${count} ${count === 1 ? 'item' : 'items'} · ${presentationLabels[doc.presentation]}`

@@ -1,6 +1,6 @@
 # Dependency pins and overrides
 
-The lockfile pins Payload and its official packages together at 3.91.0, Next.js at 16.4.2, and compatible React/TypeScript tooling. Node 24 is the supported application and CI runtime.
+The lockfile pins Payload and its official packages together at 3.91.0, Next.js at 16.4.6, and compatible React/TypeScript tooling. Node 24 is the supported application and CI runtime.
 
 Scoped overrides in `pnpm-workspace.yaml` remove advisories inherited from the pinned upstream dependency graph:
 

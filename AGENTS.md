@@ -2,6 +2,12 @@
 
 Reusable research blog and multimedia CMS built with Next.js, Payload, and PostgreSQL.
 
+## Workspace
+
+Prefer the primary local checkout when free; use a worktree when another task is
+using it. After merging a PR, return the primary checkout to `main` and run
+`git pull --ff-only` when free, leaving it clean.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know

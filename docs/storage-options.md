@@ -71,3 +71,22 @@ My proposed independent archive policy is 30 daily logical database snapshots an
 Back up the original media, derivatives, every bundle version and manifests, the database, and the source commit identifying its migrations. Do not configure age-based deletion of originals: old posts and retained revisions may still reference them. Backups must capture a coherent database/object set, through an editorial write pause or versioned inventory that accounts for concurrent edits. A database-only backup cannot reconstruct uploads.
 
 Restore into an isolated environment first: restore Postgres and objects under their existing keys, configure independent secrets/domains, and verify private/public permissions, captions, source attachments, playback and manifest hashes. Test recovery before treating the backups as dependable. Object storage durability, CMS draft history and application reference guards do not substitute for a tested backup.
+
+### Rehearse a local disk restore
+
+Use a populated local test database in this repository's Compose PostgreSQL service and its matching disk storage directory. Include a public entry with uploaded evidence, a private draft, and an interactive bundle. Pause the web process, scheduled jobs, imports, and other writers for the duration of the copy. Run from the checkout whose migrations match the database.
+
+```sh
+bash scripts/rehearse-local-restore.sh hci_authoring_test /absolute/path/to/test-storage
+```
+
+The helper dumps PostgreSQL, archives the entire storage directory, records the current Git commit, verifies archive checksums, and restores into a newly created test database and a separate directory. It compares the restored file tree with the paused source, checks original and derivative file sizes against the restored media records, and verifies bundle hashes against current and versioned manifests. It prints both destinations and retains them for inspection. The temporary directory contains private records, files, and account password hashes. For a long-lived archive, use the protected independent destination described above.
+
+Start a second web and embed service with the printed database name, the restored `objects` directory as `STORAGE_DIR`, distinct local origins and secrets, disk storage, and scheduled jobs disabled. Run `pnpm db:migrate` against that restored database to verify migration history. Through the restored services:
+
+- Compare the signed-in draft with the source, including the order of its list revisions, items, text, and links.
+- Check anonymously that the draft and private file are inaccessible. Sign in to read the private file. Open a published source attachment as an anonymous reader and verify that internal source notes stay private.
+- Open a public post, compare downloaded originals with the source bytes, and request a video byte range.
+- Fetch each public bundle file through the restored embed origin and compare its SHA-256 digest with its database manifest.
+
+The disk rehearsal exercises PostgreSQL and the local storage adapter. A hosted recovery drill also needs an independent bucket archive, restored object keys, and verified access through the deployed S3 adapter.

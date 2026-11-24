@@ -33,9 +33,11 @@ export async function PostCard({ post, index }: { post: EntrySummary; index: num
               })
             : 'Field note'}
         </time>
-        <span>
-          {post.itemCount} {post.itemCount === 1 ? 'slide' : 'slides'}
-        </span>
+        {post.itemCount > 0 && (
+          <span>
+            {post.itemCount} {post.itemCount === 1 ? 'slide' : 'slides'}
+          </span>
+        )}
       </div>
       <h2>
         <Link href={`/posts/${post.slug}`}>{post.title}</Link>
