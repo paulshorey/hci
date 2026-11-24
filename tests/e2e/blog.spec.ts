@@ -83,6 +83,7 @@ test('required primary content can be empty and supplemental relations are optio
   })
   expect(remove.status()).toBe(400)
   await page.goto('/posts/empty-primary')
+  await expect(page.locator('.article-meta')).not.toContainText('0 slides')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('An empty primary entry')
 })
 
