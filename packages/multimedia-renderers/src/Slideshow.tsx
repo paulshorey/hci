@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 
-type CarouselHistory = Record<string, unknown> & { multimediaSlides?: Record<string, string> }
+type CarouselHistory = Record<string, unknown> & {
+  multimediaSlides?: { page: string; selections: Record<string, string> }
+}
 
 const slideListeners = new Set<() => void>()
 let previousPage = ''
@@ -12,18 +14,18 @@ function syncSlideHistory() {
   const { history, location } = window
   const page = location.pathname + location.search
   const state = history.state as CarouselHistory | null
-  if (!state?.multimediaSlides) {
+  if (state?.multimediaSlides?.page !== page) {
     // Native fragment navigation creates an entry with no state. Carry the current
     // selections into it, then update the carousel targeted by the fragment.
     const previous = page === previousPage ? previousHistory : null
-    const selections = location.hash ? { ...previous?.multimediaSlides } : {}
+    const selections = location.hash ? { ...previous?.multimediaSlides?.selections } : {}
     const linked = document.getElementById(location.hash.slice(1))
     if (linked?.id.startsWith('slide-')) {
       const listId = linked.closest<HTMLElement>('[data-multimedia-carousel]')?.dataset
         .multimediaCarousel
       if (listId) selections[listId] = linked.id.slice('slide-'.length)
     }
-    history.replaceState({ ...(state ?? previous), multimediaSlides: selections }, '')
+    history.replaceState({ ...(state ?? previous), multimediaSlides: { page, selections } }, '')
   }
   previousPage = page
   previousHistory = history.state
@@ -56,7 +58,13 @@ export function Slideshow({
 }) {
   const selectedId = useSyncExternalStore(
     subscribeToSlides,
-    () => (window.history.state as CarouselHistory | null)?.multimediaSlides?.[listId],
+    () => {
+      const { history, location } = window
+      const stored = (history.state as CarouselHistory | null)?.multimediaSlides
+      return stored?.page === location.pathname + location.search
+        ? stored.selections[listId]
+        : undefined
+    },
     () => undefined,
   )
   const [all, setAll] = useState(false)

@@ -65,6 +65,13 @@ test('two evidence carousels retain their positions during links and browser nav
   await page.goForward()
   await expectSlides('Detail', 'Detail')
 
+  // Exercise a history entry to which client routing carried the previous state.
+  await page.evaluate(() => window.history.pushState(window.history.state, '', '?reader=other'))
+  await page.goBack()
+  await expectSlides('Detail', 'Detail')
+  await page.goForward()
+  await expectSlides('Overview', 'Overview')
+
   const linkedPage = await page.context().newPage()
   await linkedPage.goto(deepLink)
   await linkedPage.reload()

@@ -37,5 +37,5 @@ mkdir "$archive/objects"
 tar -C "$archive/objects" -xf "$archive/objects.tar"
 diff -qr "$objects" "$archive/objects"
 # A byte-identical copy can still be missing a file that the database references.
-"${pg[@]}" psql -X -U hci -d "$restore_db" -v ON_ERROR_STOP=1 -At < scripts/restore-file-references.sql | node scripts/verify-restored-files.mjs "$archive/objects"
+"${pg[@]}" psql -X -U hci -d "$restore_db" -v ON_ERROR_STOP=1 -v storage_driver=disk -At < scripts/restore-file-references.sql | node scripts/verify-restored-files.mjs "$archive/objects"
 echo 'Database restored and storage copy verified.'

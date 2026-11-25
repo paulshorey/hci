@@ -12,8 +12,12 @@ async function check(file, expected) {
   assert.equal(sha.digest('hex'), expected, 'Retained file checksum mismatch')
 }
 await check(path.join(root, 'database.dump'), manifest.dumpSha256)
-for (const { key, sha256 } of manifest.files) {
-  assert.ok(key.split('/').every((part) => part && part !== '.' && part !== '..'))
-  await check(path.join(root, 'objects', key), sha256)
+await check(path.join(root, 'restore-file-references.sql'), manifest.referencesSha256)
+const keys = new Set()
+for (const { key, file, sha256 } of manifest.files) {
+  assert.ok(key && !keys.has(key), 'Missing or duplicate archive storage key')
+  keys.add(key)
+  assert.equal(file, createHash('sha256').update(key).digest('hex'), 'Invalid archive filename')
+  await check(path.join(root, 'objects', file), sha256)
 }
 console.log('Verified archive dump and ' + manifest.files.length + ' object checksums.')

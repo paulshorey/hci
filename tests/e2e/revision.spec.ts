@@ -16,7 +16,9 @@ test('an editor can replace an image, reorder supplemental lists and restore the
     await editor.get('/api/media?where[filename][like]=sample-workspace-&sort=filename')
   ).json()
   const [original, replacement] = images.docs
-  const originalBytes = await (await request.get(original.url)).body()
+  const originalResponse = await request.get(original.url)
+  await expect(originalResponse).toBeOK()
+  const originalBytes = await originalResponse.body()
   const source = (
     await (await editor.get('/api/sources?where[_status][equals]=published&limit=1')).json()
   ).docs[0]
@@ -104,6 +106,11 @@ test('an editor can replace an image, reorder supplemental lists and restore the
   await expect
     .poll(async () => (await publicEntry()).contentLists[2].items[0].content[0]?.caption)
     .toBe(updated)
+  expect((await publicEntry()).contentLists[2].items[0].content[0]).toMatchObject({
+    media: replacement.id,
+    source: source.id,
+    caption: updated,
+  })
   await page.goto('/admin/collections/entries/' + id + '/versions/' + version)
   await page.getByRole('button', { name: 'Restore this version' }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm' }).click()
@@ -116,5 +123,7 @@ test('an editor can replace an image, reorder supplemental lists and restore the
     source: source.id,
     caption,
   })
-  expect(await (await request.get(original.url)).body()).toEqual(originalBytes)
+  const restoredResponse = await request.get(original.url)
+  await expect(restoredResponse).toBeOK()
+  expect(await restoredResponse.body()).toEqual(originalBytes)
 })
