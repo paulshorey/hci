@@ -1,0 +1,102 @@
+name: Independent production backup
+on:
+  schedule:
+    - cron: '27 5 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency: hci-independent-backup
+jobs:
+  archive:
+    if: github.ref == 'refs/heads/main' && vars.HCI_INDEPENDENT_BACKUP == 'enabled'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    environment: production
+    services:
+      verification-db:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: local-verification
+          POSTGRES_DB: restore_test
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Prepare archive tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y age postgresql-common ca-certificates
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-17
+          echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
+      - name: Capture database and matching objects
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: 114d34ca-984f-43a0-b9ac-6e0d72ee489e
+          RAILWAY_ENVIRONMENT_ID: 9b8cb8a9-31f2-4913-8fa4-75eafd25f0da
+        run: |
+          set -euo pipefail
+          umask 077
+          target=(-p "$RAILWAY_PROJECT_ID" -e "$RAILWAY_ENVIRONMENT_ID" -s web)
+          rw=(pnpm --silent dlx @railway/cli@5.62.1)
+          active_commit() {
+            "${rw[@]}" deployment list "${target[@]}" --limit 10 --json | jq -er 'map(select(.status == "SUCCESS")) | first.meta.commitHash'
+          }
+          commit=$(active_commit)
+          "${rw[@]}" variables "${target[@]}" --json | node scripts/archive-hosted.mjs "$RUNNER_TEMP/capture" "$commit"
+          test "$(active_commit)" = "$commit"
+      - name: Restore to disposable PostgreSQL and encrypt
+        env:
+          PGPASSWORD: local-verification
+          RECIPIENT: ${{ vars.HCI_BACKUP_AGE_RECIPIENT }}
+        run: |
+          set -euo pipefail
+          umask 077
+          node scripts/verify-hosted-archive.mjs "$RUNNER_TEMP/capture"
+          pg_restore -h 127.0.0.1 -U postgres -d restore_test --exit-on-error --single-transaction --no-owner --no-privileges "$RUNNER_TEMP/capture/database.dump"
+          psql -X -h 127.0.0.1 -U postgres -d restore_test -At -v ON_ERROR_STOP=1 -f scripts/restore-file-references.sql | node scripts/verify-restored-files.mjs "$RUNNER_TEMP/capture/objects"
+          tar -C "$RUNNER_TEMP/capture" -cf - . | age -r "$RECIPIENT" -o "$RUNNER_TEMP/archive.tar.age"
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.HCI_BACKUP_ROLE_ARN }}
+          aws-region: ${{ vars.HCI_BACKUP_REGION }}
+      - name: Retain and read back encrypted version
+        env:
+          BUCKET: ${{ vars.HCI_BACKUP_BUCKET }}
+          OWNER: ${{ vars.HCI_BACKUP_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$(aws sts get-caller-identity --query Account --output text)" = "$OWNER"
+          archive="$RUNNER_TEMP/archive.tar.age"
+          key="hci/production/$(date -u +%F)/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.tar.age"
+          days=30
+          if [[ $(date -u +%d) == 01 ]]; then days=366; fi
+          until_date=$(date -u -d "+$days days" +%FT%TZ)
+          target=(--bucket "$BUCKET" --key "$key" --expected-bucket-owner "$OWNER")
+          lock=$(aws s3api get-object-lock-configuration --bucket "$BUCKET" --expected-bucket-owner "$OWNER")
+          jq -e '.ObjectLockConfiguration.ObjectLockEnabled == "Enabled" and (.ObjectLockConfiguration.Rule.DefaultRetention.Mode | IN("COMPLIANCE","GOVERNANCE"))' <<<"$lock" > /dev/null
+          aws s3 cp "$archive" "s3://$BUCKET/$key" --only-show-errors --checksum-algorithm SHA256
+          object=$(aws s3api head-object "${target[@]}")
+          version=$(jq -er '.VersionId | select(. != "null")' <<<"$object")
+          mode=$(jq -er '.ObjectLockMode | select(IN("GOVERNANCE","COMPLIANCE"))' <<<"$object")
+          protected_until() {
+            aws s3api get-object-retention "${target[@]}" --version-id "$version" --query Retention.RetainUntilDate --output text
+          }
+          if (( $(date -d "$(protected_until)" +%s) < $(date -d "$until_date" +%s) )); then
+            aws s3api put-object-retention "${target[@]}" --version-id "$version" --retention "Mode=$mode,RetainUntilDate=$until_date"
+          fi
+          test "$(date -d "$(protected_until)" +%s)" -ge "$(date -d "$until_date" +%s)"
+          aws s3api get-object "${target[@]}" --version-id "$version" "$RUNNER_TEMP/readback.age" > /dev/null
+          cmp "$archive" "$RUNNER_TEMP/readback.age"
+      - name: Signal independently monitored daily success
+        env:
+          HEARTBEAT: ${{ secrets.HCI_BACKUP_HEARTBEAT_URL }}
+        run: curl --proto '=https' --silent --fail --max-time 20 --output /dev/null "$HEARTBEAT"
