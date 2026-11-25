@@ -76,7 +76,7 @@ pnpm test
 pnpm db:verify
 pnpm test:integration
 pnpm build
-pnpm exec playwright install chromium
+pnpm exec playwright install chromium webkit
 pnpm test:e2e
 ```
 

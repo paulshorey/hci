@@ -1,28 +1,31 @@
 'use client'
 
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
-
-function subscribe(listener: () => void) {
-  window.addEventListener('hashchange', listener)
-  return () => window.removeEventListener('hashchange', listener)
-}
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 export function Slideshow({
   slides,
 }: {
   slides: { id: string; title: string; layout: string; content: ReactNode }[]
 }) {
-  const hash = useSyncExternalStore(
-    subscribe,
-    () => window.location.hash,
-    () => '',
-  )
+  const [selectedId, setSelectedId] = useState<string>()
   const [all, setAll] = useState(false)
   const root = useRef<HTMLElement>(null)
   const index = Math.max(
     0,
-    slides.findIndex((slide) => `#slide-${slide.id}` === hash),
+    slides.findIndex((slide) => slide.id === selectedId),
   )
+
+  useEffect(() => {
+    const followLink = () => {
+      const hash = window.location.hash
+      const linked = slides.find((slide) => hash === `#slide-${slide.id}`)
+      if (linked) setSelectedId(linked.id)
+      else if (!hash) setSelectedId(undefined)
+    }
+    window.addEventListener('hashchange', followLink)
+    followLink()
+    return () => window.removeEventListener('hashchange', followLink)
+  }, [slides])
   useEffect(() => {
     root.current?.querySelectorAll<HTMLMediaElement>('video, audio').forEach((media) => {
       if (all || media.closest('[hidden]')) media.pause()
