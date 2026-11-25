@@ -1,13 +1,64 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+
+type CarouselHistory = Record<string, unknown> & { multimediaSlides?: Record<string, string> }
+
+const slideListeners = new Set<() => void>()
+let previousPage = ''
+let previousHistory: CarouselHistory | null = null
+
+function syncSlideHistory() {
+  const { history, location } = window
+  const page = location.pathname + location.search
+  const state = history.state as CarouselHistory | null
+  if (!state?.multimediaSlides) {
+    // Native fragment navigation creates an entry with no state. Carry the current
+    // selections into it, then update the carousel targeted by the fragment.
+    const previous = page === previousPage ? previousHistory : null
+    const selections = location.hash ? { ...previous?.multimediaSlides } : {}
+    const linked = document.getElementById(location.hash.slice(1))
+    if (linked?.id.startsWith('slide-')) {
+      const listId = linked.closest<HTMLElement>('[data-multimedia-carousel]')?.dataset
+        .multimediaCarousel
+      if (listId) selections[listId] = linked.id.slice('slide-'.length)
+    }
+    history.replaceState({ ...(state ?? previous), multimediaSlides: selections }, '')
+  }
+  previousPage = page
+  previousHistory = history.state
+  slideListeners.forEach((listener) => listener())
+}
+
+function subscribeToSlides(listener: () => void) {
+  slideListeners.add(listener)
+  if (slideListeners.size === 1) {
+    window.addEventListener('popstate', syncSlideHistory)
+    window.addEventListener('hashchange', syncSlideHistory)
+    syncSlideHistory()
+  }
+  return () => {
+    slideListeners.delete(listener)
+    if (slideListeners.size === 0) {
+      window.removeEventListener('popstate', syncSlideHistory)
+      window.removeEventListener('hashchange', syncSlideHistory)
+      previousHistory = null
+    }
+  }
+}
 
 export function Slideshow({
+  listId,
   slides,
 }: {
+  listId: number
   slides: { id: string; title: string; layout: string; content: ReactNode }[]
 }) {
-  const [selectedId, setSelectedId] = useState<string>()
+  const selectedId = useSyncExternalStore(
+    subscribeToSlides,
+    () => (window.history.state as CarouselHistory | null)?.multimediaSlides?.[listId],
+    () => undefined,
+  )
   const [all, setAll] = useState(false)
   const root = useRef<HTMLElement>(null)
   const index = Math.max(
@@ -15,17 +66,6 @@ export function Slideshow({
     slides.findIndex((slide) => slide.id === selectedId),
   )
 
-  useEffect(() => {
-    const followLink = () => {
-      const hash = window.location.hash
-      const linked = slides.find((slide) => hash === `#slide-${slide.id}`)
-      if (linked) setSelectedId(linked.id)
-      else if (!hash) setSelectedId(undefined)
-    }
-    window.addEventListener('hashchange', followLink)
-    followLink()
-    return () => window.removeEventListener('hashchange', followLink)
-  }, [slides])
   useEffect(() => {
     root.current?.querySelectorAll<HTMLMediaElement>('video, audio').forEach((media) => {
       if (all || media.closest('[hidden]')) media.pause()
@@ -39,6 +79,7 @@ export function Slideshow({
     <section
       ref={root}
       className="slideshow"
+      data-multimedia-carousel={listId}
       aria-label="Multimedia slideshow"
       aria-roledescription={all ? undefined : 'carousel'}
       onKeyDown={(event) => {

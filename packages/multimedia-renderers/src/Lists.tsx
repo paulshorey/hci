@@ -14,7 +14,8 @@ export function ContentLists({ lists, preview }: { lists: ContentList[]; preview
       )),
     }))
     if (!content.length) return null
-    if (list.presentation === 'carousel') return <Slideshow key={list.id} slides={content} />
+    if (list.presentation === 'carousel')
+      return <Slideshow key={list.id} listId={list.id} slides={content} />
     return (
       <section
         key={list.id}
