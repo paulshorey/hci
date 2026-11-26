@@ -1,0 +1,113 @@
+name: Independent production backup
+on:
+  schedule:
+    - cron: '27 5 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency: hci-independent-backup
+jobs:
+  archive:
+    if: github.ref == 'refs/heads/main' && vars.HCI_INDEPENDENT_BACKUP == 'enabled'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    environment: production
+    services:
+      verification-db:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: local-verification
+          POSTGRES_DB: restore_test
+        ports: ['127.0.0.1:5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Prepare archive tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y age postgresql-common ca-certificates
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-17
+          echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
+      - name: Capture database and matching objects
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: 114d34ca-984f-43a0-b9ac-6e0d72ee489e
+          RAILWAY_ENVIRONMENT_ID: 9b8cb8a9-31f2-4913-8fa4-75eafd25f0da
+        run: |
+          set -euo pipefail
+          umask 077
+          target=(-p "$RAILWAY_PROJECT_ID" -e "$RAILWAY_ENVIRONMENT_ID" -s c531648b-bf4b-416f-8f6e-a75f41eead83)
+          rw=(pnpm --silent dlx @railway/cli@5.62.1)
+          active_commit() {
+            "${rw[@]}" deployment list "${target[@]}" --limit 10 --json | jq -er 'map(select(.status == "SUCCESS")) | first.meta.commitHash'
+          }
+          commit=$(active_commit)
+          [[ $commit =~ ^[a-f0-9]{40}$ ]]
+          git merge-base --is-ancestor "$commit" origin/prod
+          references="$RUNNER_TEMP/restore-file-references.sql"
+          if git diff --quiet "$commit" -- schema/current.sql; then
+            cp scripts/restore-file-references.sql "$references"
+          elif git cat-file -e "$commit:scripts/restore-file-references.sql" 2>/dev/null; then
+            git show "$commit:scripts/restore-file-references.sql" > "$references"
+          else
+            # Older production commits keep the query in the local restore script.
+            git show "$commit:scripts/rehearse-local-restore.sh" |
+              sed -n '/^WITH manifests(prefix, manifest) AS (/,/^SQL$/{ /^SQL$/d; p; }' > "$references"
+          fi
+          test -s "$references"
+          "${rw[@]}" variables "${target[@]}" --json | node scripts/archive-hosted.mjs "$RUNNER_TEMP/capture" "$commit" "$references"
+          test "$(active_commit)" = "$commit"
+      - name: Restore to disposable PostgreSQL and encrypt
+        env:
+          PGPASSWORD: local-verification
+          RECIPIENT: ${{ vars.HCI_BACKUP_AGE_RECIPIENT }}
+        run: |
+          set -euo pipefail
+          umask 077
+          trap 'rm -rf -- "$RUNNER_TEMP/capture"' EXIT
+          # Tool errors can include database rows and private object names.
+          if ! node scripts/verify-hosted-archive.mjs "$RUNNER_TEMP/capture" 2>/dev/null; then
+            echo 'Archive checksum verification failed.' >&2
+            exit 1
+          fi
+          if ! pg_restore -h 127.0.0.1 -U postgres -d restore_test --exit-on-error --single-transaction --no-owner --no-privileges "$RUNNER_TEMP/capture/database.dump" 2>/dev/null; then
+            echo 'Archive database restore failed.' >&2
+            exit 1
+          fi
+          commit=$(jq -er '.commit' "$RUNNER_TEMP/capture/manifest.json")
+          if ! psql -X -h 127.0.0.1 -U postgres -d restore_test -At -v ON_ERROR_STOP=1 -c 'SELECT json_object_agg(name, checksum) FROM public.cms_migration_checksums' 2>/dev/null | node scripts/verify-restored-migrations.mjs "$commit" 2>/dev/null; then
+            echo 'Restored migration ledger does not match the deployed commit.' >&2
+            exit 1
+          fi
+          if ! psql -X -h 127.0.0.1 -U postgres -d restore_test -At -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/capture/restore-file-references.sql" 2>/dev/null | node scripts/verify-restored-files.mjs "$RUNNER_TEMP/capture/objects" "$RUNNER_TEMP/capture/manifest.json" 2>/dev/null; then
+            echo 'Restored database file reference verification failed.' >&2
+            exit 1
+          fi
+          jq -er '.capturedAt | split("T")[0]' "$RUNNER_TEMP/capture/manifest.json" > "$RUNNER_TEMP/capture-date"
+          tar -C "$RUNNER_TEMP/capture" -cf - . | age -r "$RECIPIENT" -o "$RUNNER_TEMP/archive.tar.age"
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.HCI_BACKUP_ROLE_ARN }}
+          aws-region: ${{ vars.HCI_BACKUP_REGION }}
+      - name: Retain and read back encrypted version
+        env:
+          BUCKET: ${{ vars.HCI_BACKUP_BUCKET }}
+          OWNER: ${{ vars.HCI_BACKUP_ACCOUNT_ID }}
+          AWS_CONFIG_FILE: ${{ runner.temp }}/backup-aws-config
+        run: |
+          aws configure set default.s3.preferred_transfer_client classic
+          bash scripts/retain-hosted-archive.sh
+      - name: Signal independently monitored daily success
+        env:
+          HEARTBEAT: ${{ secrets.HCI_BACKUP_HEARTBEAT_URL }}
+        run: curl --proto '=https' --silent --fail --max-time 20 --output /dev/null "$HEARTBEAT"

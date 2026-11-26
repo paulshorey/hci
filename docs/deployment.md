@@ -72,6 +72,15 @@ The same CLI initially created the project-level bucket definition without its e
 
 ## Backups and release verification
 
-`scripts/configure-backups.ts` owns the supplemental backup configuration not exposed by the current IaC SDK. The infrastructure workflow runs it after push applies. Dev has daily PostgreSQL volume backups; production has daily, weekly and monthly schedules. Schedule read-back is verified. Current provider retention is 6 days for daily snapshots, 27 days for weekly snapshots and 89 days for monthly snapshots. These are provider-managed volume backups; independent logical database exports, media/bundle archives and an isolated restore drill remain separate work. A database volume backup contains no uploaded media.
+`scripts/configure-backups.ts` owns the supplemental backup configuration not exposed by the current IaC SDK. The infrastructure workflow runs it after push applies. Dev has daily PostgreSQL volume backups; production has daily, weekly and monthly schedules. Schedule read-back is verified. Current provider retention is 6 days for daily snapshots, 27 days for weekly snapshots and 89 days for monthly snapshots. For independent logical exports, matching media and bundle archives, and a verified restore, see [the backup and recovery runbook](storage-options.md#backup-and-recovery-plan).
 
 For every release, verify both web and embed deployment states and source commits, the web `/api/health` endpoint and embed `/health`, migration/bootstrap completion in the web pre-deploy logs, and a clean full IaC plan. The authenticated editor should also verify uploads, private/public delivery, slideshow captions and interactive bundle previews. GitHub source branch triggers were read back for both services in both environments; source pushes trigger builds independently of the infrastructure workflow.
+
+### Checking a new pull request environment
+
+On PRs #13 and #15, Railway provisioned a distinct database and asset bucket, while the web and embed origins and several credential values were copied from development. Check every new preview before signing in, importing private records, or starting a recovery drill.
+
+1. Read the PR environment ID, actual service domains, database host, bucket and storage key identity from Railway. Compare them with both long-lived environments in memory. Report only whether they differ.
+2. Configure the preview web and embed services with their own HTTPS origins and a new shared embed signing secret. On web, set a separate CMS signing secret, administrator email and random bootstrap password. Disable scheduled jobs for recovery previews. Apply preview credentials before the first account is created where possible.
+3. Read back both services' resolved variables. If pre-deploy already created an account, changing a bootstrap variable alone does not change its stored credentials. Use the preview account recovery procedure or initialize a fresh database on the isolated preview service before continuing.
+4. Wait for both deployments, read their health endpoints on the preview domains, and verify a normal login with the preview-only account. An anonymous draft preview should return 401. A passing Railway health check alone does not exercise authentication.

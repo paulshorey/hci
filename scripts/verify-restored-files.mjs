@@ -1,15 +1,21 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
-import { realpath, stat } from 'node:fs/promises'
+import { readFile, realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { createInterface } from 'node:readline'
 
-const root = await realpath(process.argv[2])
+const [directory, manifestPath] = process.argv.slice(2)
+const root = await realpath(directory)
+const archivedFiles = manifestPath
+  ? new Map(JSON.parse(await readFile(manifestPath)).files.map(({ key, file }) => [key, file]))
+  : null
 let count = 0
 for await (const line of createInterface({ input: process.stdin, crlfDelay: Infinity })) {
   const { key, size, sha256 } = JSON.parse(line)
-  const file = await realpath(path.resolve(root, key))
+  const archivedFile = archivedFiles ? archivedFiles.get(key) : key
+  assert.ok(archivedFile, 'A database reference is missing from the archive inventory')
+  const file = await realpath(path.resolve(root, archivedFile))
   assert.ok(file.startsWith(root + path.sep), 'Object path leaves the restored storage directory')
   const info = await stat(file)
   assert.ok(info.isFile(), `Expected a regular file for ${key}`)

@@ -10,7 +10,10 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   reporter: [['list'], ['html', { open: 'never' }]],
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'mobile-webkit', testMatch: '**/reader.spec.ts', use: { ...devices['iPhone 13'] } },
+  ],
   webServer: [
     {
       command: 'pnpm start',
