@@ -21,9 +21,9 @@ function syncSlideHistory() {
     const selections = location.hash ? { ...previous?.multimediaSlides?.selections } : {}
     const linked = document.getElementById(location.hash.slice(1))
     if (linked?.id.startsWith('slide-')) {
-      const listId = linked.closest<HTMLElement>('[data-multimedia-carousel]')?.dataset
+      const listKey = linked.closest<HTMLElement>('[data-multimedia-carousel]')?.dataset
         .multimediaCarousel
-      if (listId) selections[listId] = linked.id.slice('slide-'.length)
+      if (listKey) selections[listKey] = linked.id.slice('slide-'.length)
     }
     history.replaceState({ ...(state ?? previous), multimediaSlides: { page, selections } }, '')
   }
@@ -50,10 +50,10 @@ function subscribeToSlides(listener: () => void) {
 }
 
 export function Slideshow({
-  listId,
+  listKey,
   slides,
 }: {
-  listId: number
+  listKey: string
   slides: { id: string; title: string; layout: string; content: ReactNode }[]
 }) {
   const selectedId = useSyncExternalStore(
@@ -61,9 +61,12 @@ export function Slideshow({
     () => {
       const { history, location } = window
       const stored = (history.state as CarouselHistory | null)?.multimediaSlides
-      return stored?.page === location.pathname + location.search
-        ? stored.selections[listId]
-        : undefined
+      const linked = slides.find((slide) => `#slide-${slide.id}` === location.hash)
+      if (linked) return linked.id
+      if (stored?.page !== location.pathname + location.search) return undefined
+      if (stored.selections[listKey]) return stored.selections[listKey]
+      // Older history entries use revision IDs, but their slide IDs are stable.
+      return Object.values(stored.selections).find((id) => slides.some((slide) => slide.id === id))
     },
     () => undefined,
   )
@@ -87,7 +90,7 @@ export function Slideshow({
     <section
       ref={root}
       className="slideshow"
-      data-multimedia-carousel={listId}
+      data-multimedia-carousel={listKey}
       aria-label="Multimedia slideshow"
       aria-roledescription={all ? undefined : 'carousel'}
       onKeyDown={(event) => {

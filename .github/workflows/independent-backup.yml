@@ -84,10 +84,16 @@ jobs:
             echo 'Archive database restore failed.' >&2
             exit 1
           fi
+          commit=$(jq -er '.commit' "$RUNNER_TEMP/capture/manifest.json")
+          if ! psql -X -h 127.0.0.1 -U postgres -d restore_test -At -v ON_ERROR_STOP=1 -c 'SELECT json_object_agg(name, checksum) FROM public.cms_migration_checksums' 2>/dev/null | node scripts/verify-restored-migrations.mjs "$commit" 2>/dev/null; then
+            echo 'Restored migration ledger does not match the deployed commit.' >&2
+            exit 1
+          fi
           if ! psql -X -h 127.0.0.1 -U postgres -d restore_test -At -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/capture/restore-file-references.sql" 2>/dev/null | node scripts/verify-restored-files.mjs "$RUNNER_TEMP/capture/objects" "$RUNNER_TEMP/capture/manifest.json" 2>/dev/null; then
             echo 'Restored database file reference verification failed.' >&2
             exit 1
           fi
+          jq -er '.capturedAt | split("T")[0]' "$RUNNER_TEMP/capture/manifest.json" > "$RUNNER_TEMP/capture-date"
           tar -C "$RUNNER_TEMP/capture" -cf - . | age -r "$RECIPIENT" -o "$RUNNER_TEMP/archive.tar.age"
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -97,31 +103,10 @@ jobs:
         env:
           BUCKET: ${{ vars.HCI_BACKUP_BUCKET }}
           OWNER: ${{ vars.HCI_BACKUP_ACCOUNT_ID }}
+          AWS_CONFIG_FILE: ${{ runner.temp }}/backup-aws-config
         run: |
-          set -euo pipefail
-          umask 077
-          test "$(aws sts get-caller-identity --query Account --output text)" = "$OWNER"
-          archive="$RUNNER_TEMP/archive.tar.age"
-          key="hci/production/$(date -u +%F)/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.tar.age"
-          days=30
-          if [[ $(date -u +%d) == 01 ]]; then days=366; fi
-          until_date=$(date -u -d "+$days days" +%FT%TZ)
-          target=(--bucket "$BUCKET" --key "$key" --expected-bucket-owner "$OWNER")
-          lock=$(aws s3api get-object-lock-configuration --bucket "$BUCKET" --expected-bucket-owner "$OWNER")
-          jq -e '.ObjectLockConfiguration.ObjectLockEnabled == "Enabled" and (.ObjectLockConfiguration.Rule.DefaultRetention.Mode | IN("COMPLIANCE","GOVERNANCE"))' <<<"$lock" > /dev/null
-          aws s3 cp "$archive" "s3://$BUCKET/$key" --only-show-errors --checksum-algorithm SHA256
-          object=$(aws s3api head-object "${target[@]}")
-          version=$(jq -er '.VersionId | select(. != "null")' <<<"$object")
-          mode=$(jq -er '.ObjectLockMode | select(IN("GOVERNANCE","COMPLIANCE"))' <<<"$object")
-          protected_until() {
-            aws s3api get-object-retention "${target[@]}" --version-id "$version" --query Retention.RetainUntilDate --output text
-          }
-          if (( $(date -d "$(protected_until)" +%s) < $(date -d "$until_date" +%s) )); then
-            aws s3api put-object-retention "${target[@]}" --version-id "$version" --retention "Mode=$mode,RetainUntilDate=$until_date"
-          fi
-          test "$(date -d "$(protected_until)" +%s)" -ge "$(date -d "$until_date" +%s)"
-          aws s3api get-object "${target[@]}" --version-id "$version" "$RUNNER_TEMP/readback.age" > /dev/null
-          cmp "$archive" "$RUNNER_TEMP/readback.age"
+          aws configure set default.s3.preferred_transfer_client classic
+          bash scripts/retain-hosted-archive.sh
       - name: Signal independently monitored daily success
         env:
           HEARTBEAT: ${{ secrets.HCI_BACKUP_HEARTBEAT_URL }}

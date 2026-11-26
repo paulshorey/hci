@@ -12,7 +12,7 @@ test('two evidence carousels retain their positions during links and browser nav
     },
   })
   expect(signedIn.ok()).toBeTruthy()
-  const lists = []
+  const lists: number[] = []
   for (const title of ['Texture', 'Shape']) {
     const response = await request.post('/api/content-lists', {
       data: {
@@ -63,6 +63,47 @@ test('two evidence carousels retain their positions during links and browser nav
   await page.goForward()
   await expectSlides('Detail', 'Overview')
   await page.goForward()
+  await expectSlides('Detail', 'Detail')
+
+  // Publishing a fork changes the SQL row ID while the reader's tab keeps its history.
+  const revision = await request.post(`/api/content-lists/${lists[0]}/revise`)
+  expect(revision.status()).toBe(201)
+  const revised = await revision.json()
+  expect(revised.id).not.toBe(lists[0])
+  const { doc } = await entry.json()
+  const published = await request.patch(`/api/entries/${doc.id}`, {
+    data: {
+      title: 'Revised evidence collections',
+      contentLists: [revised.id, lists[1]],
+      _status: 'published',
+    },
+  })
+  await expect(published).toBeOK()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Revised evidence collections' })).toBeVisible()
+  await expectSlides('Detail', 'Detail')
+
+  // An already-open tab from the previous release still has revision IDs as keys.
+  const selected = await groups
+    .locator('article:not([hidden])')
+    .evaluateAll((articles) => articles.map((article) => article.id.slice('slide-'.length)))
+  await page.evaluate(
+    ({ ids, selected }) => {
+      const state = window.history.state
+      window.history.replaceState(
+        {
+          ...state,
+          multimediaSlides: {
+            page: location.pathname + location.search,
+            selections: { [ids[0]]: selected[0], [ids[1]]: selected[1] },
+          },
+        },
+        '',
+      )
+    },
+    { ids: lists, selected },
+  )
+  await page.reload()
   await expectSlides('Detail', 'Detail')
 
   // Exercise a history entry to which client routing carried the previous state.
